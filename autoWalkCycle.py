@@ -17,7 +17,8 @@ buffer = 60 # dist limit from max reach
 tiltHeight = 30 # amount to drop to tilt
 
 bcGroundLen = math.sqrt((lenB + lenC)**2 - walkHeight**2) # length of leg vector projected from Z to the ground
-maxX = math.sqrt((bcGroundLen + lenA)**2 - lineDist**2)-buffer # maximum forwards X reach of leg
+# maxX = math.sqrt((bcGroundLen + lenA)**2 - lineDist**2)-buffer # maximum forwards X reach of leg
+maxX = 30
 
 order = [0,3,1,2]
 
@@ -35,8 +36,8 @@ def getDists ():
     dists = [[[] for it in order] for it2 in opposites]
 
     for i in range(len(order)):
-        j = i
-        counter = 0
+        j = (i+1)% len(order)
+        counter = 1
         for k in range(len(order)):
             dists[order[i]][j] = counter
             if order[j] == order[i]:
@@ -51,30 +52,30 @@ def generate ():
 
     print(dists)
 
-    for i in order:
+    for i in range(len(order)):
         for j in range(len(moves)):
 
-            curMovePos = dists[j][i] * (maxX*2 / len(order)) - maxX
+            curMovePos = maxX - dists[j][i] * (maxX*2 / len(order))
             amMove = (maxX*2 / len(order)) / 3
 
-            if j == i: #lift
-                moves[j].append([lineDist, curMovePos, -walkHeight]) # position move
-                moves[j].append([lineDist, curMovePos, -walkHeight-tiltHeight]) # drop
-                moves[j].append([lineDist, curMovePos, -walkHeight+30]) # lift
-                moves[j].append([lineDist, maxX, -walkHeight+30]) # lifted move
-                moves[j].append([lineDist, maxX, -walkHeight]) # undrop
-            elif j == opposites[i]: #drop
-                moves[j].append([lineDist, curMovePos + amMove*2, -walkHeight]) # position move
-                moves[j].append([lineDist, curMovePos + amMove*2, -walkHeight+tiltHeight]) # drop
-                moves[j].append([lineDist, curMovePos + amMove, -walkHeight+tiltHeight]) # move
-                moves[j].append([lineDist, curMovePos, -walkHeight+tiltHeight])# move
-                moves[j].append([lineDist, curMovePos, -walkHeight]) # undrop
+            if j == order[i]: #lift
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # position move
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight-tiltHeight]) # drop
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight+30]) # lift
+                moves[j].append([maxX, lineDist, -walkHeight+30]) # lifted move
+                moves[j].append([maxX, lineDist, -walkHeight]) # undrop
+            elif j == opposites[order[i]]: #drop
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # position move
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight+tiltHeight]) # drop
+                moves[j].append([curMovePos + amMove, lineDist, -walkHeight+tiltHeight]) # move
+                moves[j].append([curMovePos, lineDist, -walkHeight+tiltHeight])# move
+                moves[j].append([curMovePos, lineDist, -walkHeight]) # undrop
             else: #do
-                moves[j].append([lineDist, curMovePos + amMove*2, -walkHeight]) # position move
-                moves[j].append([lineDist, curMovePos + amMove*2, -walkHeight]) # drop
-                moves[j].append([lineDist, curMovePos + amMove, -walkHeight]) # move
-                moves[j].append([lineDist, curMovePos, -walkHeight])# move
-                moves[j].append([lineDist, curMovePos, -walkHeight]) # undrop
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # position move
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # drop
+                moves[j].append([curMovePos + amMove, lineDist, -walkHeight]) # move
+                moves[j].append([curMovePos, lineDist, -walkHeight])# move
+                moves[j].append([curMovePos, lineDist, -walkHeight]) # undrop
 
 def getSteps (cycleStart, cycleEnd, stepsIn, legIn):
     moveX = (cycleEnd[0]-cycleStart[0])/stepsIn
@@ -90,8 +91,8 @@ def getSteps (cycleStart, cycleEnd, stepsIn, legIn):
 
 def genSteps () :
     for leg in range(len(moves)):
-        for i in range(len(order)):
-            steps[leg].extend(getSteps(moves[leg][i], moves[leg][(i+1)%len(order)], stepsPerCycle, leg))
+        for i in range(len(moves[leg])):
+            steps[leg].extend(getSteps(moves[leg][i], moves[leg][(i+1)%len(moves[leg])], stepsPerCycle, leg))
 
 
 def calcRots (xyz, leg):
@@ -140,12 +141,30 @@ def mainLoop():
 
         time.sleep(timePerCycle / stepsPerCycle)
 
-        counter = (counter+1)%(len(order)*stepsPerCycle)
+        counter = (counter+1)%(len(order)*stepsPerCycle*5)
 
 generate()
 genSteps()
 
 for itttttt in range(len(moves[0])):
     print(moves[0][itttttt])
+
+print("2: ---------------")
+
+for itttttt in range(len(moves[1])):
+    print(moves[1][itttttt])
+
+print("3: ---------------")
+
+for itttttt in range(len(moves[2])):
+    print(moves[2][itttttt])
+
+
+print("4: ---------------")
+
+for itttttt in range(len(moves[3])):
+    print(moves[3][itttttt])
+
+# print(len(steps[0]))
 
 mainLoop()
