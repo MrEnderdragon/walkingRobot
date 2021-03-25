@@ -1,28 +1,27 @@
 import math
 import time
-import offsets as ofs
-# from adafruit_servokit import ServoKit
-# kit = ServoKit(channels=16)
+from adafruit_servokit import ServoKit
+kit = ServoKit(channels=16)
 
 lenA = 10.875 # lenth of shoulder motor1 to shoulder motor 2, projected onto the ground plane
 lenB = 46.95 # lenth of upper arm
 lenC = 68.5 # length of lower arm
 
-stepsPerCycle = 5 # amount of steps for every cycle
-timePerCycle = 0.1 # amount of time taken for every cycle (seconds)
+stepsPerCycle = 30 # amount of steps for every cycle
+timePerCycle = 1 # amount of time taken for every cycle (seconds)
 
-walkHeight = 88.5 # height of walk line
-lineDist = 36.95 # dist from walk line
+walkHeight = 68.5 # height of walk line
+lineDist = 0.95 # dist from walk line
 buffer = 60 # dist limit from max reach
 
-tiltHeight = 20 # amount to drop to tilt
+tiltHeight = 30 # amount to drop to tilt
 
 # bcGroundLen = math.sqrt((lenB + lenC)**2 - walkHeight**2) # length of leg vector projected from Z to the ground
 # maxX = math.sqrt((bcGroundLen + lenA)**2 - lineDist**2)-buffer # maximum forwards X reach of leg
-outX = 30
-inX = 10
+maxY = 30
+minY = 10
 
-order = [0,3,1,2]
+order = [0,1]
 
 opposites = [3,2,1,0]
 
@@ -50,34 +49,18 @@ def getDists ():
     return dists
 
 def generate ():
-    dists = getDists()
-
-    print(dists)
 
     for i in range(len(order)):
         for j in range(len(moves)):
-
-            curMovePos = (outX if j <= 1 else inX) - dists[j][i] * ((outX+inX) / (len(order)))
-            amMove = ((outX+inX) / (len(order))) / 5
-
             if j == order[i]: #lift
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight-tiltHeight]) # drop
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight+30]) # lift
-                moves[j].append([(outX if j <= 1 else inX), lineDist, -walkHeight+30]) # lifted move
-                moves[j].append([(outX if j <= 1 else inX), lineDist, -walkHeight]) # undrop
+                moves[j].append([lineDist if j < 2 else -lineDist, minY if j%2 == 0 else maxY, -walkHeight]) # move
+                moves[j].append([lineDist if j < 2 else -lineDist, (minY+maxY)/2, -walkHeight+30]) # lift
             elif j == opposites[order[i]]: #drop
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*3, lineDist, -walkHeight+tiltHeight]) # drop
-                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight+tiltHeight]) # move
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight+tiltHeight])# move
-                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight]) # undrop
+                moves[j].append([lineDist if j < 2 else -lineDist, minY if j%2 == 0 else maxY, -walkHeight]) # move
+                moves[j].append([lineDist if j < 2 else -lineDist, (minY+maxY)/2, -walkHeight+30]) # lift
             else: #do
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*3, lineDist, -walkHeight]) # drop
-                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # move
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight])# move
-                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight]) # undrop
+                moves[j].append([lineDist if j < 2 else -lineDist, maxY if j%2 == 0 else minY, -walkHeight]) # unlift
+                moves[j].append([lineDist if j < 2 else -lineDist, (minY+maxY)/2, -walkHeight]) # move
 
 def getSteps (cycleStart, cycleEnd, stepsIn, legIn):
     moveX = (cycleEnd[0]-cycleStart[0])/stepsIn
@@ -118,17 +101,19 @@ def calcRots (xyz, leg):
 
 def moveLegs (rots,leg): # one leg per group of  (4 ports)
 
-    kit.servo[leg*4+0].angle = rots[0] + ofs.offsets[leg][0]# invert the legs on one side
+    # print (rots)
+
+    kit.servo[leg*4+0].angle = rots[0] # invert the legs on one side
 
     if(leg == 0 or leg == 3):
-        kit.servo[leg*4+1].angle = rots[1] + ofs.offsets[leg][1]
+        kit.servo[leg*4+1].angle = rots[1]
     else:
-        kit.servo[leg*4+1].angle = 180-rots[1] + ofs.offsets[leg][1]
+        kit.servo[leg*4+1].angle = 180-rots[1]
 
     if(leg == 0 or leg == 3):
-        kit.servo[leg*4+2].angle = rots[2] + ofs.offsets[leg][2]
+        kit.servo[leg*4+2].angle = rots[2]
     else:
-        kit.servo[leg*4+2].angle = 180-rots[2] + ofs.offsets[leg][2]
+        kit.servo[leg*4+2].angle = 180-rots[2]
 
 
 def mainLoop():
@@ -150,26 +135,4 @@ def mainLoop():
 
 generate()
 genSteps()
-
-for itttttt in range(len(moves[0])):
-    print(moves[0][itttttt])
-
-print("2: ---------------")
-
-for itttttt in range(len(moves[1])):
-    print(moves[1][itttttt])
-
-print("3: ---------------")
-
-for itttttt in range(len(moves[2])):
-    print(moves[2][itttttt])
-
-
-print("4: ---------------")
-
-for itttttt in range(len(moves[3])):
-    print(moves[3][itttttt])
-
-# print(len(steps[0]))
-
 mainLoop()

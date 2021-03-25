@@ -1,15 +1,14 @@
 import math
 import time
-import offsets as ofs
-# from adafruit_servokit import ServoKit
-# kit = ServoKit(channels=16)
+from adafruit_servokit import ServoKit
+kit = ServoKit(channels=16)
 
 lenA = 10.875 # lenth of shoulder motor1 to shoulder motor 2, projected onto the ground plane
 lenB = 46.95 # lenth of upper arm
 lenC = 68.5 # length of lower arm
 
-stepsPerCycle = 5 # amount of steps for every cycle
-timePerCycle = 0.1 # amount of time taken for every cycle (seconds)
+stepsPerCycle = 50 # amount of steps for every cycle
+timePerCycle = 0.2 # amount of time taken for every cycle (seconds)
 
 walkHeight = 88.5 # height of walk line
 lineDist = 36.95 # dist from walk line
@@ -116,19 +115,21 @@ def calcRots (xyz, leg):
 
 
 
-def moveLegs (rots,leg): # one leg per group of  (4 ports)
+def moveLegs (rots,leg): # one leg per group of  (4 ports) TODO: REDO!!! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    kit.servo[leg*4+0].angle = rots[0] + ofs.offsets[leg][0]# invert the legs on one side
+    # print (rots)
 
-    if(leg == 0 or leg == 3):
-        kit.servo[leg*4+1].angle = rots[1] + ofs.offsets[leg][1]
-    else:
-        kit.servo[leg*4+1].angle = 180-rots[1] + ofs.offsets[leg][1]
+    kit.servo[leg*4+0].angle = rots[0] # invert the legs on one side
 
     if(leg == 0 or leg == 3):
-        kit.servo[leg*4+2].angle = rots[2] + ofs.offsets[leg][2]
+        kit.servo[leg*4+1].angle = rots[1]
     else:
-        kit.servo[leg*4+2].angle = 180-rots[2] + ofs.offsets[leg][2]
+        kit.servo[leg*4+1].angle = 180-rots[1]
+
+    if(leg == 0 or leg == 3):
+        kit.servo[leg*4+2].angle = rots[2]
+    else:
+        kit.servo[leg*4+2].angle = 180-rots[2]
 
 
 def mainLoop():
@@ -150,26 +151,5 @@ def mainLoop():
 
 generate()
 genSteps()
-
-for itttttt in range(len(moves[0])):
-    print(moves[0][itttttt])
-
-print("2: ---------------")
-
-for itttttt in range(len(moves[1])):
-    print(moves[1][itttttt])
-
-print("3: ---------------")
-
-for itttttt in range(len(moves[2])):
-    print(moves[2][itttttt])
-
-
-print("4: ---------------")
-
-for itttttt in range(len(moves[3])):
-    print(moves[3][itttttt])
-
-# print(len(steps[0]))
-
 mainLoop()
+

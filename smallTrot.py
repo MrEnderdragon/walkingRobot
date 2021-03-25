@@ -1,28 +1,28 @@
 import math
 import time
 import offsets as ofs
-# from adafruit_servokit import ServoKit
-# kit = ServoKit(channels=16)
+from adafruit_servokit import ServoKit
+kit = ServoKit(channels=16)
 
 lenA = 10.875 # lenth of shoulder motor1 to shoulder motor 2, projected onto the ground plane
 lenB = 46.95 # lenth of upper arm
 lenC = 68.5 # length of lower arm
 
-stepsPerCycle = 5 # amount of steps for every cycle
+stepsPerCycle = 10 # amount of steps for every cycle
 timePerCycle = 0.1 # amount of time taken for every cycle (seconds)
 
-walkHeight = 88.5 # height of walk line
-lineDist = 36.95 # dist from walk line
+walkHeight = 68.5 # height of walk line
+lineDist = 46.95 # dist from walk line
 buffer = 60 # dist limit from max reach
 
-tiltHeight = 20 # amount to drop to tilt
+liftHeight = 20 # amount to drop to tilt
 
 # bcGroundLen = math.sqrt((lenB + lenC)**2 - walkHeight**2) # length of leg vector projected from Z to the ground
 # maxX = math.sqrt((bcGroundLen + lenA)**2 - lineDist**2)-buffer # maximum forwards X reach of leg
-outX = 30
-inX = 10
+maxX = 30
+minX = 10
 
-order = [0,3,1,2]
+order = [0,1]
 
 opposites = [3,2,1,0]
 
@@ -50,34 +50,18 @@ def getDists ():
     return dists
 
 def generate ():
-    dists = getDists()
-
-    print(dists)
 
     for i in range(len(order)):
         for j in range(len(moves)):
-
-            curMovePos = (outX if j <= 1 else inX) - dists[j][i] * ((outX+inX) / (len(order)))
-            amMove = ((outX+inX) / (len(order))) / 5
-
             if j == order[i]: #lift
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight-tiltHeight]) # drop
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight+30]) # lift
-                moves[j].append([(outX if j <= 1 else inX), lineDist, -walkHeight+30]) # lifted move
-                moves[j].append([(outX if j <= 1 else inX), lineDist, -walkHeight]) # undrop
+                moves[j].append([minX if j <= 1 else -maxX, lineDist, -walkHeight]) # move
+                moves[j].append([minX if j <= 1 else -maxX, lineDist, -walkHeight+liftHeight]) # lift
             elif j == opposites[order[i]]: #drop
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*3, lineDist, -walkHeight+tiltHeight]) # drop
-                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight+tiltHeight]) # move
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight+tiltHeight])# move
-                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight]) # undrop
+                moves[j].append([minX if j <= 1 else -maxX, lineDist, -walkHeight]) # move
+                moves[j].append([minX if j <= 1 else -maxX, lineDist, -walkHeight+liftHeight]) # lift
             else: #do
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*3, lineDist, -walkHeight]) # drop
-                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # move
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight])# move
-                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight]) # undrop
+                moves[j].append([maxX if j <= 1 else -minX, lineDist, -walkHeight+liftHeight]) # unlift
+                moves[j].append([maxX if j <= 1 else -minX, lineDist, -walkHeight]) # move
 
 def getSteps (cycleStart, cycleEnd, stepsIn, legIn):
     moveX = (cycleEnd[0]-cycleStart[0])/stepsIn
@@ -150,26 +134,4 @@ def mainLoop():
 
 generate()
 genSteps()
-
-for itttttt in range(len(moves[0])):
-    print(moves[0][itttttt])
-
-print("2: ---------------")
-
-for itttttt in range(len(moves[1])):
-    print(moves[1][itttttt])
-
-print("3: ---------------")
-
-for itttttt in range(len(moves[2])):
-    print(moves[2][itttttt])
-
-
-print("4: ---------------")
-
-for itttttt in range(len(moves[3])):
-    print(moves[3][itttttt])
-
-# print(len(steps[0]))
-
 mainLoop()

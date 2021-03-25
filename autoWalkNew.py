@@ -1,14 +1,30 @@
 import math
 import time
-import offsets as ofs
-# from adafruit_servokit import ServoKit
-# kit = ServoKit(channels=16)
+import Adafruit_PCA9685
 
-lenA = 10.875 # lenth of shoulder motor1 to shoulder motor 2, projected onto the ground plane
+class Servo:
+    def __init__(self):
+        self.angleMin=18
+        self.angleMax=162
+        self.pwm = Adafruit_PCA9685.PCA9685()
+        self.pwm.set_pwm_freq(50)               # Set the cycle frequency of PWM
+    #Convert the input angle to the value of pca9685
+    def map(self,value,fromLow,fromHigh,toLow,toHigh):
+        return (toHigh-toLow)*(value-fromLow) / (fromHigh-fromLow) + toLow
+    def setAng(self,channel, angle):
+        if angle < self.angleMin:
+            angle = self.angleMin
+        elif angle >self.angleMax:
+            angle=self.angleMax
+        date=self.map(angle,0,180,102,512)
+        #print(date,date/4096*0.02)
+        self.pwm.set_pwm(channel, 0, int(date))
+
+lenA = 10.875 # lenth of shoulder motor1 to shoulder motor 2, projected onto th$
 lenB = 46.95 # lenth of upper arm
 lenC = 68.5 # length of lower arm
 
-stepsPerCycle = 5 # amount of steps for every cycle
+stepsPerCycle = 15 # amount of steps for every cycle
 timePerCycle = 0.1 # amount of time taken for every cycle (seconds)
 
 walkHeight = 88.5 # height of walk line
@@ -17,10 +33,9 @@ buffer = 60 # dist limit from max reach
 
 tiltHeight = 20 # amount to drop to tilt
 
-# bcGroundLen = math.sqrt((lenB + lenC)**2 - walkHeight**2) # length of leg vector projected from Z to the ground
-# maxX = math.sqrt((bcGroundLen + lenA)**2 - lineDist**2)-buffer # maximum forwards X reach of leg
-outX = 30
-inX = 10
+bcGroundLen = math.sqrt((lenB + lenC)**2 - walkHeight**2) # length of leg vecto$
+#maxX = math.sqrt((bcGroundLen + lenA)**2 - lineDist**2)-buffer # maximum forwa$
+maxX = 25
 
 order = [0,3,1,2]
 
@@ -57,27 +72,27 @@ def generate ():
     for i in range(len(order)):
         for j in range(len(moves)):
 
-            curMovePos = (outX if j <= 1 else inX) - dists[j][i] * ((outX+inX) / (len(order)))
-            amMove = ((outX+inX) / (len(order))) / 5
+            curMovePos = maxX - dists[j][i] * (maxX*2 / len(order))
+            amMove = (maxX*2 / len(order)) / 3
 
             if j == order[i]: #lift
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight-tiltHeight]) # drop
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight+30]) # lift
-                moves[j].append([(outX if j <= 1 else inX), lineDist, -walkHeight+30]) # lifted move
-                moves[j].append([(outX if j <= 1 else inX), lineDist, -walkHeight]) # undrop
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # position move
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight-tiltHeight]) # drop
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight+30]) # lift
+                moves[j].append([maxX, lineDist, -walkHeight+30]) # lifted move
+                moves[j].append([maxX, lineDist, -walkHeight]) # undrop
             elif j == opposites[order[i]]: #drop
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*3, lineDist, -walkHeight+tiltHeight]) # drop
-                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight+tiltHeight]) # move
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight+tiltHeight])# move
-                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight]) # undrop
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # position move
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight+tiltHeight]) # drop
+                moves[j].append([curMovePos + amMove, lineDist, -walkHeight+tiltHeight]) # move
+                moves[j].append([curMovePos, lineDist, -walkHeight+tiltHeight])# move
+                moves[j].append([curMovePos, lineDist, -walkHeight]) # undrop
             else: #do
-                moves[j].append([curMovePos + amMove*4, lineDist, -walkHeight]) # position move
-                moves[j].append([curMovePos + amMove*3, lineDist, -walkHeight]) # drop
-                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # move
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight])# move
-                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight]) # undrop
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # position move
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # drop
+                moves[j].append([curMovePos + amMove, lineDist, -walkHeight]) # move
+                moves[j].append([curMovePos, lineDist, -walkHeight])# move
+                moves[j].append([curMovePos, lineDist, -walkHeight]) # undrop
 
 def getSteps (cycleStart, cycleEnd, stepsIn, legIn):
     moveX = (cycleEnd[0]-cycleStart[0])/stepsIn
@@ -114,30 +129,26 @@ def calcRots (xyz, leg):
 
     return [max(min(90+xyAng,180),0), max(min(180-zXYAng-angA,180),0), max(min(angB,180),0)] # angle at elbow has to be inverted
 
-
-
 def moveLegs (rots,leg): # one leg per group of  (4 ports)
-
-    kit.servo[leg*4+0].angle = rots[0] + ofs.offsets[leg][0]# invert the legs on one side
-
-    if(leg == 0 or leg == 3):
-        kit.servo[leg*4+1].angle = rots[1] + ofs.offsets[leg][1]
-    else:
-        kit.servo[leg*4+1].angle = 180-rots[1] + ofs.offsets[leg][1]
+    Se.setAng(leg*4+0,rots[0]) # invert the legs on one side
 
     if(leg == 0 or leg == 3):
-        kit.servo[leg*4+2].angle = rots[2] + ofs.offsets[leg][2]
+        # kit.servo[leg*4+1].angle = rots[1]
+        Se.setAng(leg*4+1,rots[1])
     else:
-        kit.servo[leg*4+2].angle = 180-rots[2] + ofs.offsets[leg][2]
+        # kit.servo[leg*4+1].angle = 180-rots[1]
+        Se.setAng(leg*4+1,180-rots[1])
+
+    if(leg == 0 or leg == 3):
+        # kit.servo[leg*4+2].angle = rots[2]
+        Se.setAng(leg*4+2,rots[2])
+    else:
+        # kit.servo[leg*4+2].angle = 180-rots[2]
+        Se.setAng(leg*4+2,180-rots[2])
 
 
 def mainLoop():
     counter = 0
-    moveLegs(steps[0][0], 0)
-    moveLegs(steps[1][0], 1)
-    moveLegs(steps[2][0], 2)
-    moveLegs(steps[3][0], 3)
-    time.sleep(1)
     while True:
         moveLegs(steps[0][counter], 0)
         moveLegs(steps[1][counter], 1)
@@ -146,30 +157,8 @@ def mainLoop():
 
         time.sleep(timePerCycle / stepsPerCycle)
 
-        counter = (counter+1)%len(steps[0])
+        counter = (counter+1)%(len(order)*stepsPerCycle*5)
 
 generate()
 genSteps()
-
-for itttttt in range(len(moves[0])):
-    print(moves[0][itttttt])
-
-print("2: ---------------")
-
-for itttttt in range(len(moves[1])):
-    print(moves[1][itttttt])
-
-print("3: ---------------")
-
-for itttttt in range(len(moves[2])):
-    print(moves[2][itttttt])
-
-
-print("4: ---------------")
-
-for itttttt in range(len(moves[3])):
-    print(moves[3][itttttt])
-
-# print(len(steps[0]))
-
 mainLoop()

@@ -4,8 +4,8 @@ from adafruit_servokit import ServoKit
 kit = ServoKit(channels=16)
 
 lenA = 10.875 # lenth of shoulder motor1 to shoulder motor 2, projected onto the ground plane
-lenB = 66.95 # lenth of upper arm
-lenC = 118.5 # length of lower arm
+lenB = 46.95 # lenth of upper arm
+lenC = 68.5 # length of lower arm
 
 legs = [
 [70,70,-130], # } one

@@ -19,8 +19,8 @@ tiltHeight = 20 # amount to drop to tilt
 
 # bcGroundLen = math.sqrt((lenB + lenC)**2 - walkHeight**2) # length of leg vector projected from Z to the ground
 # maxX = math.sqrt((bcGroundLen + lenA)**2 - lineDist**2)-buffer # maximum forwards X reach of leg
-outX = 30
-inX = 10
+outX = -30
+inX = -10
 
 order = [0,3,1,2]
 
