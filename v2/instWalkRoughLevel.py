@@ -5,6 +5,7 @@ import regMove
 import sys
 from enum import Enum
 import threading
+import multiprocessing
 import smbus
 
 serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000)
@@ -22,7 +23,7 @@ timePerCycle = 0.5
 # amount to move every step of findground
 gndStepSize = 4
 # threshold for findGround
-gndThresh = 7
+gndThresh = 5
 
 
 # height of walk line
@@ -34,7 +35,7 @@ frontLine = 120
 # how much to lift leg
 liftHeight = 80
 # amount to tilt
-tiltHeight = 20
+tiltHeight = 30
 
 # leg max outwards reach
 outX = 100
@@ -45,11 +46,11 @@ inX = 30
 # gyro calibrate amount
 amCalibrate = 10
 # gyro time per rotation update [0.05]->[0.2]
-updateTime = 0.2
+updateTime = 0.05
 # gyro time per move
-moveTime = 0.05
+moveTime = 0.1
 # gyro gains up and down
-gainsUp = 15
+gainsUp = 20
 # gyro gains side to side (unused)
 gainsSide = 1
 # gyro flat threshold
@@ -96,7 +97,7 @@ limits = [
 
 rotOffs = [0,0,-20]
 
-rotation = [0,0,0]
+rotation = multiprocessing.Array('d', 3) # [0,0,0]
 offsets = [0,0,0]
 
 PWR_MGMT_1   = 0x6B
@@ -134,6 +135,42 @@ class inst:
     def __init__(self, typeIn, argsIn):
         self.type = typeIn
         self.args = argsIn
+
+
+def getDigs (inn):
+    return int(math.log10(abs(int(inn))))+1 + (1 if inn<0 else 0) + 2
+
+def printInterface():
+    global coords
+
+    buffer = 10
+
+    print("-" * ((1+10)*2 + 1))
+    # digsone = int(math.log10(int(coords[0][0])))+1
+    # digstwo = int(math.log10(int(coords[1][0])))+1
+    print("|", (" " * (4+(buffer-getDigs(coords[0][0])))),  "X: %.2f" %coords[0][0]," | ", (" " * (4+(buffer-getDigs(coords[1][0])))),  "X: %.2f" %coords[1][0]," |")
+    # digsone = int(math.log10(int(coords[0][1])))+1
+    # digstwo = int(math.log10(int(coords[1][1])))+1
+    print("|", " 0: ", (" " * (buffer-getDigs(coords[0][1]))),  "Y: %.2f" %coords[0][1]," | ", " 1: ", (" " * (buffer-getDigs(coords[1][1]))),  "Y: %.2f" %coords[1][1]," |")
+    # digsone = int(math.log10(int(coords[0][2])))+1
+    # digstwo = int(math.log10(int(coords[1][2])))+1
+    print("|", (" " * (4+(buffer-getDigs(coords[0][2])))),  "Z: %.2f" %coords[0][2]," | ", (" " * (4+(buffer-getDigs(coords[1][2])))),  "Z: %.2f" %coords[1][2]," |")
+
+    print("-" * ((1+10)*2 + 1))
+    # digsone = int(math.log10(int(coords[2][0])))+1
+    # digstwo = int(math.log10(int(coords[3][0])))+1
+    print("|", (" " * (4+(buffer-getDigs(coords[2][0])))),  "X: %.2f" %coords[2][0], " | ", (" " * (4+(buffer-getDigs(coords[3][0])))),  "X: %.2f" %coords[3][0]," |")
+    # digsone = int(math.log10(int(coords[2][1])))+1
+    # digstwo = int(math.log10(int(coords[3][1])))+1
+    print("|", " 2: ", (" " * (buffer-getDigs(coords[2][1]))),  "Y: %.2f" %coords[2][1]," | ", " 3: ", (" " * (buffer-getDigs(coords[3][1]))),  "Y: %.2f" %coords[3][1]," |")
+    # digsone = int(math.log10(int(coords[2][2])))+1
+    # digstwo = int(math.log10(int(coords[3][2])))+1
+    print("|", (" " * (4+(buffer-getDigs(coords[2][2])))),  "Z: %.2f" %coords[2][2]," | ", (" " * (4+(buffer-getDigs(coords[3][2])))),  "Z: %.2f" %coords[3][2]," |")
+
+    print("-" * ((1+10)*2 + 1))
+    print("  X: %.2f" %rotation[0], "----Y: %.2f" %rotation[1], "----Z: %.2f" %rotation[2])
+    print("-" * ((1+10)*2 + 1))
+
 
 def getDists ():
     dists = [[[] for it in order] for it2 in opposites]
@@ -201,7 +238,7 @@ def calcRots (xyz, leg):
     xyLen = math.sqrt((x**2) + (y**2)) - lenA # length of leg vector projected from Z to ground
     trueLen = math.sqrt((xyLen**2) + (z**2)) # actual length of leg vector
 
-    zXYAng = math.degrees(math.atan(xyLen/abs(z))) if z!=0 else 0 # angle of leg vector (shoulder part 1)
+    zXYAng = math.degrees(math.atan(xyLen/-z)) if z!=0 else 0 # angle of leg vector (shoulder part 1)
 
     if(trueLen >= lenB + lenC):
         angA = 0
@@ -246,6 +283,7 @@ def findGround (leg) :
 
 
 def calibrateLegs ():
+    global coords
     avg = 0
     for i in coords:
         avg -= i[2]
@@ -262,7 +300,7 @@ def calibrateLegs ():
 
 
 def execInst (ins, leg):
-    global amTasks, driving
+    global amTasks, driving, coords
 
     if(ins.type == inst_type.abs):
         for i in range(0, 3):
@@ -341,7 +379,7 @@ def readGyros():
 
     return (Gx, Gy, Gz)
 
-def updateRotation ():
+def updateRotation (rotation, offsets):
     while(True):
         got = readGyros()
         rotation[0] += got[0]*updateTime - offsets[0]*updateTime
@@ -370,14 +408,26 @@ def selfLevel():
     while(True):
         print("X: %.2f" %rotation[0], "----Y: %.2f" %rotation[1], "----Z: %.2f" %rotation[2])
 
+        print("1: %.2f" %coords[0][2], "----2: %.2f" %coords[1][2])
+        print("3: %.2f" %coords[2][2], "----4: %.2f" %coords[3][2])
+
+
         if abs(rotation[0])<=gyroThresh and abs(rotation[1])<=gyroThresh:
             break
 
-        coords[0][2] -= rotation[0]*gainsUp*moveTime
-        coords[2][2] -= rotation[0]*gainsUp*moveTime
+        #     - <  > +       ^ +     v -
 
-        coords[1][2] += rotation[0]*gainsUp*moveTime
-        coords[3][2] += rotation[0]*gainsUp*moveTime
+
+        #   0    1
+
+        #   2    3
+
+
+        coords[0][2] += rotation[0]*gainsUp*moveTime
+        coords[2][2] += rotation[0]*gainsUp*moveTime
+
+        coords[1][2] -= rotation[0]*gainsUp*moveTime
+        coords[3][2] -= rotation[0]*gainsUp*moveTime
 
 
         coords[2][2] += rotation[1]*gainsUp*moveTime
@@ -414,7 +464,7 @@ def mainLoop():
 
     calibrateGyro()
 
-    updT = threading.Thread(target = updateRotation, args = ())
+    updT = multiprocessing.Process(target = updateRotation, args = (rotation,offsets,))
     updT.start()
 
     while True:
