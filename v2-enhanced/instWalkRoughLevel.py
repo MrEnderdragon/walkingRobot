@@ -235,14 +235,14 @@ def generate ():
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, tiltHeight])) # move + tilt
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, 0])) # lift
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, 0])) # fwd
-                moves[j].append(inst(inst_type.rel, [-amMove, 0, -tiltHeight])) # ground
+                moves[j].append(inst(inst_type.nul, [])) # ground
                 moves[j].append(inst(inst_type.cal, [])) # calibration
                 moves[j].append(inst(inst_type.gyr, [])) # calibration
             else: #do
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, -tiltHeight])) # move + tilt
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, 0])) # lift
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, 0])) # fwd
-                moves[j].append(inst(inst_type.rel, [-amMove, 0, tiltHeight])) # ground
+                moves[j].append(inst(inst_type.nul, [])) # ground
                 moves[j].append(inst(inst_type.cal, [])) # calibration
                 moves[j].append(inst(inst_type.gyr, [])) # calibration
 
@@ -329,10 +329,16 @@ def findGround (leg) :
         if abs(err1) > gndThresh or abs(err2) > gndThresh:
             break
 
-        coords[leg][2] -= gndStepSize
+        for i in range(len(opposites)):
+            if i == leg or i == opposites[leg]:
+                coords[i][2] -= gndStepSize
+            else:
+                coords[i][2] += gndStepSize
 
-        moveLegs(calcRots(coords[leg], leg), leg)
-        time.sleep(0.01)
+        for i in range(len(opposites)):
+            moveLegs(calcRots(coords[i], i), i)
+            time.sleep(0.01)
+
         regMove.actAll(serial_connection)
         time.sleep(0.1)
 
