@@ -22,8 +22,10 @@ stepsPerCycle = 1
 timePerCycle = 0.5
 # amount to move every step of findground
 gndStepSize = 4
+ungStepSize = 4
 # threshold for findGround
 gndThresh = 5
+ungThresh = 3
 
 
 # height of walk line
@@ -121,6 +123,7 @@ class inst_type (Enum):
     gnd = 3 # find the ground
     cal = 4 # calibrate legs to be more reasonable
     gyr = 5 # calibrate rotation
+    ung = 6 # unground a leg
 
 class inst:
     type = inst_type.nul
@@ -210,6 +213,7 @@ def generate ():
                 moves[j].append(inst(inst_type.rel, [0, 0, liftHeight])) # lift
                 moves[j].append(inst(inst_type.abs, [(outX if j <= 1 else inX), None, None])) # fwd
                 moves[j].append(inst(inst_type.gnd, [])) # ground
+                moves[j].append(inst(inst_type.ung, [])) # untilt
                 moves[j].append(inst(inst_type.cal, [])) # calibration
                 moves[j].append(inst(inst_type.gyr, [])) # calibration
 
@@ -217,14 +221,16 @@ def generate ():
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, tiltHeight])) # move + tilt
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, 0])) # lift
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, 0])) # fwd
-                moves[j].append(inst(inst_type.rel, [-amMove, 0, -tiltHeight])) # ground
+                moves[j].append(inst(inst_type.nul, [])) # ground
+                moves[j].append(inst(inst_type.rel, [-amMove, 0, -tiltHeight])) # untilt
                 moves[j].append(inst(inst_type.cal, [])) # calibration
                 moves[j].append(inst(inst_type.gyr, [])) # calibration
             else: #do
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, -tiltHeight])) # move + tilt
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, 0])) # lift
                 moves[j].append(inst(inst_type.rel, [-amMove, 0, 0])) # fwd
-                moves[j].append(inst(inst_type.rel, [-amMove, 0, tiltHeight])) # ground
+                moves[j].append(inst(inst_type.nul, [])) # ground
+                moves[j].append(inst(inst_type.rel, [-amMove, 0, tiltHeight])) # untilt
                 moves[j].append(inst(inst_type.cal, [])) # calibration
                 moves[j].append(inst(inst_type.gyr, [])) # calibration
 
@@ -273,7 +279,46 @@ def findGround (leg) :
         if abs(err1) > gndThresh or abs(err2) > gndThresh:
             break
 
-        coords[leg][2] -= gndStepSize
+        for i in range(len(opposites)):
+            if i == leg or i == opposites[leg]:
+                coords[i][2] -= gndStepSize
+            else:
+                coords[i][2] += gndStepSize
+
+        for i in range(len(opposites)):
+            moveLegs(calcRots(coords[i], i), i)
+            time.sleep(0.01)
+
+        regMove.actAll(serial_connection)
+        time.sleep(0.1)
+
+    amTasks -= 1
+
+
+
+def unGround (leg) :
+    global amTasks, driving, coords
+
+    while driving == True:
+        time.sleep(0.01)
+
+    # print("g start")
+    while True:
+        pres1 = serial_connection.get_present_position(legId[leg][1])
+        goal1 = serial_connection.get_goal_position(legId[leg][1])
+
+        pres2 = serial_connection.get_present_position(legId[leg][2])
+        goal2 = serial_connection.get_goal_position(legId[leg][2])
+
+        err1 = pres1-goal1
+        err2 = pres2-goal2
+
+        # print(str(err1) + " 1 <==> 2 " + str(err2))
+
+        if abs(err1) < ungThresh and abs(err2) < ungThresh:
+            break
+
+        coords[leg][2] += ungStepSize
 
         moveLegs(calcRots(coords[leg], leg), leg)
         time.sleep(0.01)
@@ -323,6 +368,11 @@ def execInst (ins, leg):
         amTasks += 1
         t1 = threading.Thread(target = findGround, args = (leg,))
         t1.start()
+
+    elif (ins.type == inst_type.ung):
+        amTasks += 1
+        t2 = threading.Thread(target = unGround, args = (leg,))
+        t2.start()
 
 def clamp (inmin, inmax, num):
     return max(inmin, min(inmax, num))
