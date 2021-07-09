@@ -11,16 +11,16 @@ lenB = 83 # lenth of upper arm
 lenC = 120 # length of lower arm
 
 stepsPerCycle = 1 # amount of steps for every cycle
-timePerCycle = 0.05 # amount of time taken for every cycle (seconds)
+timePerCycle = 0.1 # amount of time taken for every cycle (seconds)
 
 walkHeight = 90 # height of walk line
-lineDist = 150 # dist from walk line
-liftHeight = 40
+lineDist = 100 # dist from walk line
+liftHeight = 20
 
 # tiltHeight = 20 # amount to drop to tilt
 
-outX = 120
-inX = 50
+outX = 70 # 50
+inX = 30 # 20
 
 order = [0,1]
 
@@ -68,14 +68,15 @@ def generate ():
     for i in range(len(order)):
         for j in range(len(moves)):
             if j == order[i]: #lift
-                moves[j].append([inX if j <= 1 else -outX, lineDist, -walkHeight]) # move
-                moves[j].append([inX if j <= 1 else -outX, lineDist, -walkHeight+liftHeight]) # lift
+                moves[j].append([-inX if j <= 1 else -outX, lineDist, -walkHeight]) # move
+                moves[j].append([-inX if j <= 1 else -outX, lineDist+70, -walkHeight+liftHeight]) # lift
             elif j == opposites[order[i]]: #drop
-                moves[j].append([inX if j <= 1 else -outX, lineDist, -walkHeight]) # move
-                moves[j].append([inX if j <= 1 else -outX, lineDist, -walkHeight+liftHeight]) # lift
+                moves[j].append([-inX if j <= 1 else -outX, lineDist, -walkHeight]) # move
+                moves[j].append([-inX if j <= 1 else -outX, lineDist, -walkHeight+liftHeight]) # lift
             else: #do
-                moves[j].append([outX if j <= 1 else -inX, lineDist, -walkHeight+liftHeight]) # unlift
-                moves[j].append([outX if j <= 1 else -inX, lineDist, -walkHeight]) # move
+                moves[j].append([outX if j <= 1 else inX, lineDist+70 if j<=1 else lineDist, -walkHeight+liftHeight]) # unlift
+                moves[j].append([outX if j <= 1 else inX, lineDist, -walkHeight]) # move
+
 
 def getSteps (cycleStart, cycleEnd, stepsIn, legIn):
     moveX = (cycleEnd[0]-cycleStart[0])/stepsIn
@@ -105,11 +106,15 @@ def calcRots (xyz, leg):
     trueLen = math.sqrt((xyLen**2) + (z**2)) # actual length of leg vector
 
     zXYAng = math.degrees(math.atan(xyLen/abs(z))) # angle of leg vector (shoulder part 1)
-    angA = math.degrees(math.acos(((trueLen**2) + (lenB**2) - (lenC**2)) / (2*trueLen*lenB))) # angle of top arm from vector (shoulder part 2)
-    angB = math.degrees(math.acos(((lenB**2) + (lenC**2) - (trueLen**2)) / (2*lenB*lenC))) # angle of bottom arm from top arm (elbow)
+
+    if(trueLen >= lenB + lenC):
+        angA = 0
+        angB = 180
+    else:
+        angA = math.degrees(math.acos(((trueLen**2) + (lenB**2) - (lenC**2)) / (2*trueLen*lenB))) # angle of top arm from vector (shoulder part 2)
+        angB = math.degrees(math.acos(((lenB**2) + (lenC**2) - (trueLen**2)) / (2*lenB*lenC))) # angle of bottom arm from top arm (elbow)
 
     return [(-xyAng) + rotOffs[0], (90-zXYAng-angA) + rotOffs[1], (angB-90) + rotOffs[2]] # angle at elbow has to be inverted
-
 
 
 def driveLeg (leg, motor, rot):

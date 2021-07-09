@@ -11,13 +11,13 @@ lenB = 83 # lenth of upper arm
 lenC = 120 # length of lower arm
 
 stepsPerCycle = 1 # amount of steps for every cycle
-timePerCycle = 0.02 # amount of time taken for every cycle (seconds)
+timePerCycle = 0.05 # amount of time taken for every cycle (seconds)
 
 walkHeight = 90 # height of walk line
 lineDist = 150 # dist from walk line
 liftHeight = 40
 
-tiltHeight = 10 # amount to drop to tilt
+tiltHeight = 20 # amount to drop to tilt
 
 outX = 120
 inX = 50
@@ -73,17 +73,20 @@ def generate ():
         for j in range(len(moves)):
 
             curMovePos = (outX if j <= 1 else inX) - dists[j][i] * ((outX+inX) / (len(order)))
-            amMove = ((outX+inX) / (len(order))) / 2
+            amMove = ((outX+inX) / (len(order))) / 3
 
             if j == order[i]: #lift
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight-tiltHeight]) # drop
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight-tiltHeight]) # drop
                 moves[j].append([(outX if j <= 1 else inX), lineDist, -walkHeight+liftHeight]) # lift+move
+                moves[j].append([(outX if j <= 1 else inX), lineDist, -walkHeight]) # drop
             elif j == opposites[order[i]]: #drop
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight+tiltHeight]) # drop
-                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight+tiltHeight]) # move
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight+tiltHeight]) # drop
+                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight+tiltHeight]) # move
+                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight])# move+undrop
             else: #do
-                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight]) # drop
-                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight])# move
+                moves[j].append([curMovePos + amMove*2, lineDist, -walkHeight]) # drop
+                moves[j].append([curMovePos + amMove*1, lineDist, -walkHeight])# move
+                moves[j].append([curMovePos + amMove*0, lineDist, -walkHeight]) # undrop
 
 def getSteps (cycleStart, cycleEnd, stepsIn, legIn):
     moveX = (cycleEnd[0]-cycleStart[0])/stepsIn
