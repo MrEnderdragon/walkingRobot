@@ -2,10 +2,10 @@ import math
 import time
 from pyax12.connection import Connection
 import regMove
-import sys
+# import sys
 from enum import Enum
-import threading
-import multiprocessing
+# import threading
+# import multiprocessing
 import curves
 
 # import smbus
@@ -13,8 +13,8 @@ import curves
 # AX-12A motor connection
 serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000)
 
-lenA = 18.5  # lenth of shoulder motor1 to shoulder motor 2
-lenB = 83  # lenth of upper arm
+lenA = 18.5  # length of shoulder motor1 to shoulder motor 2
+lenB = 83  # length of upper arm
 lenC = 120  # length of lower arm
 
 width = 110  # width of robot
@@ -23,19 +23,15 @@ height = 183  # length of robot
 # amount of moves for every step
 stepsPerCycle = 1
 # amount of time taken for every move (seconds)
-# timePerCycle = 0.01 * 6 * 2
-timePerCycle = 1
-
-
-# TODO: FIX WALKING BACKWARDS PROBLEM
-
+timePerCycle = 0.2
+# timePerCycle = 1
 
 stdDelay = 0.001
 
 # height of walk line
 walkHeight = 90
 # distance of steps from body
-lineDist = 150
+lineDist = 120
 # how much to lift leg to step
 liftHeight = 40
 # amount to tilt before stepping
@@ -79,18 +75,23 @@ limits = [
     [-75, 105]
 ]
 
-# rotation offsets for leg motos
+# rotation offsets for leg motors
 rotOffs = [0, 0, -20]
 
-driveAcc = 1  # accuracy of driving for curves (mm)
-radius = 10*10  # millimeters * 10 = centimeters
-driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, radius)),
-               curves.quadBezier((radius, radius), (radius, radius*2), (0, radius*2)),
-               curves.quadBezier((0, radius*2), (-radius, radius*2), (-radius, radius)),
-               curves.quadBezier((-radius, radius), (-radius, 0), (0, 0))]
+driveAcc = 10  # accuracy of driving for curves (mm)
+# radius = 30*10  # millimeters * 10 = centimeters
+# driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, radius)),
+#                curves.quadBezier((radius, radius), (radius, radius*2), (0, radius*2)),
+#                curves.quadBezier((0, radius*2), (-radius, radius*2), (-radius, radius)),
+#                curves.quadBezier((-radius, radius), (-radius, 0), (0, 0))]
 
-legPos = [[height/2+outX, width/2+lineDist], [height/2-inX+(outX+inX)*1/4, -width/2-lineDist], [-height/2+inX-(outX+inX)*1/4, width/2+lineDist], [-height/2-outX, -width/2-lineDist]]  # initial positions of legs
-maxLegReach = 120
+radius = 100*10
+driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius*2, 0))]
+
+legPos = [[height/2+outX, width/2+lineDist], [height/2-inX+(outX+inX)*1/3, -width/2-lineDist], [-height/2+inX-(outX+inX)*1/3, width/2+lineDist], [-height/2-outX, -width/2-lineDist]]  # initial positions of legs
+maxLegReach = 170
+
+lastMoved = False
 
 
 # Instruction types
@@ -124,6 +125,8 @@ class inst:
 # Main loop
 def mainLoop():
 
+    global lastMoved
+
     for i in range(len(coords)):
         moveLegs(calcRots(coords[i], i), i)
 
@@ -133,149 +136,64 @@ def mainLoop():
     dPoints = generate()
 
     while True:
-        for i in range(0, len(dPoints), 2):
-            print(i)
+        for posInd in range(0, len(dPoints), 2):
+            # print(i)
 
-            bodyX = dPoints[i][0]
-            bodyY = dPoints[i][1]
-            bodyAng = dPoints[i + 1]
+            bodyX = dPoints[posInd][0]
+            bodyY = dPoints[posInd][1]
+            bodyAng = dPoints[posInd + 1]
 
             r = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
 
+            bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
+
             tmpAng = math.atan2(width / 2, height / 2)
-            topLeft = [r * math.cos(tmpAng + bodyAng) + bodyX, r * math.sin(tmpAng + bodyAng) + bodyY]
+            bodyCorners[0] = [r * math.cos(tmpAng + bodyAng) + bodyX, r * math.sin(tmpAng + bodyAng) + bodyY]
 
             tmpAng = math.atan2(-width / 2, height / 2)
-            topRight = [r * math.cos(tmpAng + bodyAng) + bodyX, r * math.sin(tmpAng + bodyAng) + bodyY]
+            bodyCorners[1] = [r * math.cos(tmpAng + bodyAng) + bodyX, r * math.sin(tmpAng + bodyAng) + bodyY]
 
             tmpAng = math.atan2(width / 2, -height / 2)
-            botLeft = [r * math.cos(tmpAng + bodyAng) + bodyX, r * math.sin(tmpAng + bodyAng) + bodyY]
+            bodyCorners[2] = [r * math.cos(tmpAng + bodyAng) + bodyX, r * math.sin(tmpAng + bodyAng) + bodyY]
 
             tmpAng = math.atan2(-width / 2, -height / 2)
-            botRight = [r * math.cos(tmpAng + bodyAng) + bodyX, r * math.sin(tmpAng + bodyAng) + bodyY]
+            bodyCorners[3] = [r * math.cos(tmpAng + bodyAng) + bodyX, r * math.sin(tmpAng + bodyAng) + bodyY]
 
             legMoved = -1
 
             foundPos = None
 
-            if dist(legPos[0], topLeft) > maxLegReach:
-                print("too long 1")
-                for j in range(i, len(dPoints), 2):
-                    testX = dPoints[j][0]
-                    testY = dPoints[j][1]
-                    testAng = dPoints[j + 1]
-
-                    testPos = [testX - (width / 2 + lineDist) * math.sin(testAng),
-                               testY + (width / 2 + lineDist) * math.cos(testAng)]
-
-                    if dist(testPos, topLeft) > maxLegReach:
-                        foundX = dPoints[j - 2][0]
-                        foundY = dPoints[j - 2][1]
-                        foundAng = dPoints[j - 2 + 1]
-
-                        foundPos = [foundX - (width / 2 + lineDist) * math.sin(foundAng),
-                                    foundY + (width / 2 + lineDist) * math.cos(foundAng)]
-
-                        legMoved = 0
-
-                        break
-
-            elif dist(legPos[1], topRight) > maxLegReach:
-                print("too long 2")
-                for j in range(i, len(dPoints), 2):
-                    testX = dPoints[j][0]
-                    testY = dPoints[j][1]
-                    testAng = dPoints[j + 1]
-
-                    testPos = [testX + (width / 2 + lineDist) * math.sin(testAng),
-                               testY - (width / 2 + lineDist) * math.cos(testAng)]
-
-                    if dist(testPos, topRight) > maxLegReach:
-                        foundX = dPoints[j - 2][0]
-                        foundY = dPoints[j - 2][1]
-                        foundAng = dPoints[j - 2 + 1]
-
-                        foundPos = [foundX + (width / 2 + lineDist) * math.sin(foundAng),
-                                    foundY - (width / 2 + lineDist) * math.cos(foundAng)]
-
-                        legMoved = 1
-
-                        break
-
-            elif dist(legPos[2], botLeft) > maxLegReach:
-                print("too long 3")
-                for j in range(i, len(dPoints), 2):
-                    testX = dPoints[j][0]
-                    testY = dPoints[j][1]
-                    testAng = dPoints[j + 1]
-
-                    testPos = [testX - (width / 2 + lineDist) * math.sin(testAng),
-                               testY + (width / 2 + lineDist) * math.cos(testAng)]
-
-                    if dist(testPos, botLeft) > maxLegReach:
-                        foundX = dPoints[j - 2][0]
-                        foundY = dPoints[j - 2][1]
-                        foundAng = dPoints[j - 2 + 1]
-
-                        foundPos = [foundX - (width / 2 + lineDist) * math.sin(foundAng),
-                                    foundY + (width / 2 + lineDist) * math.cos(foundAng)]
-
-                        legMoved = 2
-
-                        break
-
-            elif dist(legPos[3], botRight) > maxLegReach:
-                print("too long 4")
-                for j in range(i, len(dPoints), 2):
-                    testX = dPoints[j][0]
-                    testY = dPoints[j][1]
-                    testAng = dPoints[j + 1]
-
-                    testPos = [testX + (width / 2 + lineDist) * math.sin(testAng),
-                               testY - (width / 2 + lineDist) * math.cos(testAng)]
-
-                    if dist(testPos, botRight) > maxLegReach:
-                        foundX = dPoints[j - 2][0]
-                        foundY = dPoints[j - 2][1]
-                        foundAng = dPoints[j - 2 + 1]
-
-                        foundPos = [foundX + (width / 2 + lineDist) * math.sin(foundAng),
-                                    foundY - (width / 2 + lineDist) * math.cos(foundAng)]
-
-                        legMoved = 3
-
-                        break
+            for i in range(4):
+                if dist(legPos[i], bodyCorners[i]) > maxLegReach:
+                    foundPos = findNext(dPoints, bodyCorners[i], posInd, i)
+                    legMoved = i
 
             relLegPos = [[], [], [], []]
-            
-            tmpAng = math.atan2(legPos[0][1]-topLeft[1], legPos[0][0]-topLeft[0])
-            relDist = dist(legPos[0], topLeft)
-            relLegPos[0] = [relDist*math.cos(bodyAng-tmpAng), relDist*math.sin(bodyAng-tmpAng), -walkHeight]
 
-            tmpAng = math.atan2(legPos[1][1] - topRight[1], legPos[1][0] - topRight[0])
-            relDist = dist(legPos[1], topRight)
-            relLegPos[1] = [relDist * math.cos(bodyAng - tmpAng), - relDist * math.sin(bodyAng - tmpAng), -walkHeight]  # invert y on right side
-
-            tmpAng = math.atan2(legPos[2][1] - botLeft[1], legPos[2][0] - botLeft[0])
-            relDist = dist(legPos[2], botLeft)
-            relLegPos[2] = [relDist * math.cos(bodyAng - tmpAng), relDist * math.sin(bodyAng - tmpAng), -walkHeight]
-
-            tmpAng = math.atan2(legPos[3][1] - botRight[1], legPos[3][0] - botRight[0])
-            relDist = dist(legPos[3], botRight)
-            relLegPos[3] = [relDist * math.cos(bodyAng - tmpAng), - relDist * math.sin(bodyAng - tmpAng), -walkHeight]  # invert y on right side
+            for i in range(4):
+                tmpAng = math.atan2(legPos[i][1] - bodyCorners[i][1], legPos[i][0] - bodyCorners[i][0])
+                relDist = dist(legPos[i], bodyCorners[i])
+                relLegPos[i] = [relDist * math.cos(bodyAng - tmpAng), relDist * math.sin(bodyAng - tmpAng) * (-1 ** i), -walkHeight]  # invert y on right side (index 1 and 3)
 
             # atan2 posx-x, posy-y to get angle
             # car angle - angle
             # sin and cos to go back to coords
             # invert Y coord on right side
 
-            if legMoved == -1:
-                # move none
+            if lastMoved and legMoved == -1:
+                lastMoved = False
                 for leg in range(4):
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
-            else:
-                for leg in range(4): # move back and tilt
+                time.sleep(stdDelay)
+                regMove.actAll(serial_connection)
+                time.sleep(stdDelay)
+
+                time.sleep(timePerCycle)
+
+            if legMoved != -1:
+                lastMoved = True
+                for leg in range(4):  # move back and tilt
                     if leg == legMoved:
                         execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight-tiltHeight]), leg)
                     elif leg == opposites[legMoved]:
@@ -287,21 +205,12 @@ def mainLoop():
                 regMove.actAll(serial_connection)
                 time.sleep(stdDelay)
 
-                time.sleep(timePerCycle / stepsPerCycle)
+                time.sleep(timePerCycle)
 
                 for leg in range(4):  # stay and move lifting leg forwards
                     if leg == legMoved:
 
-                        cornerCoords = None
-
-                        if legMoved == 0:
-                            cornerCoords = topLeft
-                        elif legMoved == 1:
-                            cornerCoords = topRight
-                        elif legMoved == 2:
-                            cornerCoords = botLeft
-                        elif legMoved == 3:
-                            cornerCoords = botRight
+                        cornerCoords = bodyCorners[legMoved]
 
                         # update relLegPos with forward pos
                         tmpAng = math.atan2(foundPos[1] - cornerCoords[1], foundPos[0] - cornerCoords[0])
@@ -317,11 +226,36 @@ def mainLoop():
                     else:
                         execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
-            time.sleep(stdDelay)
-            regMove.actAll(serial_connection)
-            time.sleep(stdDelay)
+                time.sleep(stdDelay)
+                regMove.actAll(serial_connection)
+                time.sleep(stdDelay)
 
-            time.sleep(timePerCycle / stepsPerCycle)
+                time.sleep(timePerCycle)
+
+
+def findNext(dPoints, cornerCoord, start, leg):
+
+    searchDist = (width / 2 + lineDist)
+
+    for j in range(start, len(dPoints), 2):
+        testX = dPoints[j][0]
+        testY = dPoints[j][1]
+        testAng = dPoints[j + 1]
+
+        testPos = [testX + searchDist * math.sin(testAng) * (-1**leg), testY - searchDist * math.cos(testAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
+
+        if dist(testPos, cornerCoord) > maxLegReach:
+            foundX = dPoints[j - 2][0]
+            foundY = dPoints[j - 2][1]
+            foundAng = dPoints[j - 2 + 1]
+
+            return [foundX + searchDist * math.sin(foundAng) * (-1**leg), foundY - searchDist * math.cos(foundAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
+
+    foundX = dPoints[len(dPoints)-2][0]
+    foundY = dPoints[len(dPoints)-2][1]
+    foundAng = dPoints[len(dPoints)-2 + 1]
+
+    return [foundX + searchDist * math.sin(foundAng) * (-1**leg), foundY - searchDist * math.cos(foundAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
 
 
 def generate():
@@ -349,7 +283,7 @@ def dist(xy1, xy2):
 
 
 def calcRots(xyz, leg):
-    x = xyz[0] * ((-1) ** leg)  # invert x of legs 2 and 4 (int 1 and 3) (right side)
+    x = xyz[0] * ((-1) ** (leg+1))  # invert x of legs 2 and 4 (int 1 and 3) (right side)
     y = xyz[1]
     z = xyz[2]
 

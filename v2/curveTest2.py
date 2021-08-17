@@ -3,6 +3,7 @@ import matplotlib.widgets as mpw
 import numpy as np
 import math
 import curves
+import time
 
 # fig,ax = plt.subplots()
 fig = plt.figure()
@@ -17,7 +18,9 @@ ax.set_ylim(-2000, 2000)
 
 cursor, = ax.plot(5, 5, 'rx')
 
-points = []
+# points = []
+points = [[-500.1, 501], [1, 1.01], [500.02, 500.03], [1.1, 1000.01], [-500.033, 500.022], [1.011, 1.11], [500.11, 500.12]]
+points = [[-1500, -0.02], [0, -0.03], [500, 1], [1000, 2], [1500, 2.01], [2000, 2.02]]
 lineP = None
 areaP = None
 areaT = None
@@ -29,6 +32,16 @@ tLeft = None
 tRight = None
 bLeft = None
 bRight = None
+
+tLeftS = None
+tRightS = None
+bLeftS = None
+bRightS = None
+tLeftS2 = None
+tRightS2 = None
+bLeftS2 = None
+bRightS2 = None
+curS = None
 
 pickedUp = False
 pickedPoint = -1
@@ -42,15 +55,15 @@ def update(text):
 
 
 def onclick(event):
-    global lineP, areaP, areaT, cursor, pickedUp, pickedPoint, ppp, firstPoint, selected, tLeft, tRight, bLeft, bRight
+    global lineP, areaP, areaT, cursor, pickedUp, pickedPoint, ppp, firstPoint, selected, tLeft, tRight, bLeft, bRight, tLeftS, tRightS, bLeftS, bRightS, curS, tLeftS2, tRightS2, bLeftS2, bRightS2
 
     if event.y >= 150:
 
         if pickedUp:
             pickedUp = False
             pickedPoint = -1
-            selected.set_xdata(-1)
-            selected.set_ydata(-1)
+            selected.set_xdata([])
+            selected.set_ydata([])
 
         elif str(event.button) == "MouseButton.RIGHT":
             if not pickedUp:
@@ -70,7 +83,9 @@ def onclick(event):
 
             points.insert(len(points), [event.xdata, event.ydata])
 
-            if len(points) == 1:
+            print(points)
+
+            if ppp is None:
                 # points.append([event.xdata,event.ydata])
                 xs, ys = zip(*points)
 
@@ -83,11 +98,23 @@ def onclick(event):
                 bLeft, = ax.plot(xs, ys, 'co', markersize=1)
                 bRight, = ax.plot(xs, ys, 'ko', markersize=1)
 
+                tLeftS, = ax.plot(xs, ys, 'go', markersize=1)
+                tRightS, = ax.plot(xs, ys, 'mo', markersize=1)
+                bLeftS, = ax.plot(xs, ys, 'co', markersize=1)
+                bRightS, = ax.plot(xs, ys, 'ko', markersize=1)
+
+                tLeftS2, = ax.plot(xs, ys, 'go', markersize=1)
+                tRightS2, = ax.plot(xs, ys, 'mo', markersize=1)
+                bLeftS2, = ax.plot(xs, ys, 'co', markersize=1)
+                bRightS2, = ax.plot(xs, ys, 'ko', markersize=1)
+
+                curS, = ax.plot(xs, ys, 'bo', markersize=1.4)
+
                 # print(PolyArea(xs,ys))
 
                 firstPoint, = ax.plot(points[0][0], points[0][1], 'ro')
 
-                selected, = ax.plot(-1, -1, markersize=8, marker='o', markerfacecolor="#7a00fc",
+                selected, = ax.plot([], [], markersize=8, marker='o', markerfacecolor="#7a00fc",
                                     markeredgecolor="#7a00fc")
 
             # print(points)
@@ -153,7 +180,7 @@ def generate(points):
 
         tmppp.extend(curv.renderPoints())
 
-        spacing = 1
+        spacing = 10
 
         pos, ang = curv.getPosDir(spacing, curOver)
 
@@ -192,9 +219,15 @@ def generateSteps(dPoints):
     inX = 50
     # legPos=[[0,0],[0,0],[0,0],[0,0]]
     legPos = [[height / 2 + outX, width / 2 + legDist],
-              [height / 2 - inX + (outX + inX) * 1 / 4, -width / 2 - legDist],
-              [-height / 2 + inX - (outX + inX) * 1 / 4, width / 2 + legDist],
+              [height / 2 - inX + (outX + inX) * 1 / 3, -width / 2 - legDist],
+              [-height / 2 + inX - (outX + inX) * 1 / 3, width / 2 + legDist],
               [-height / 2 - outX, -width / 2 - legDist]]  # initial positions of legs
+
+    legPos = [[height / 2 + math.sqrt(maxDist ** 2 - legDist ** 2) / 2, width / 2 + legDist],
+              [height / 2 - math.sqrt(maxDist ** 2 - legDist ** 2) * 1 / 6, -width / 2 - legDist],
+              [-height / 2 + math.sqrt(maxDist ** 2 - legDist ** 2) * 1 / 6, width / 2 + legDist],
+              [-height / 2 - math.sqrt(maxDist ** 2 - legDist ** 2) / 2,
+               -width / 2 - legDist]]  # initial positions of legs
 
     res = [[], [], [], []]
 
@@ -222,7 +255,7 @@ def generateSteps(dPoints):
         # print(str(topLeft) + " " + str(topRight) + " " + str(botLeft) + " " + str(botRight))
 
         if dist(legPos[0], topLeft) > maxDist:
-            print("too long")
+            # print("too long")
             for j in range(i, len(dPoints), 2):
                 xx = dPoints[j][0]
                 yy = dPoints[j][1]
@@ -244,11 +277,11 @@ def generateSteps(dPoints):
                     legPos[0] = posss
                     res[0].append(posss)
 
-                    print("found, setting leg pos to: " + str(posss))
+                    # print("found, setting leg pos to: " + str(posss))
 
                     break
         elif dist(legPos[1], topRight) > maxDist:
-            print("too long")
+            # print("too long")
             for j in range(i, len(dPoints), 2):
                 xx = dPoints[j][0]
                 yy = dPoints[j][1]
@@ -270,11 +303,11 @@ def generateSteps(dPoints):
                     legPos[1] = posss
                     res[1].append(posss)
 
-                    print("found, setting leg pos to: " + str(posss))
+                    # print("found, setting leg pos to: " + str(posss))
 
                     break
         elif dist(legPos[2], botLeft) > maxDist:
-            print("too long")
+            # print("too long")
             for j in range(i, len(dPoints), 2):
                 xx = dPoints[j][0]
                 yy = dPoints[j][1]
@@ -296,11 +329,11 @@ def generateSteps(dPoints):
                     legPos[2] = posss
                     res[2].append(posss)
 
-                    print("found, setting leg pos to: " + str(posss))
+                    # print("found, setting leg pos to: " + str(posss))
 
                     break
         elif dist(legPos[3], botRight) > maxDist:
-            print("too long")
+            # print("too long")
             for j in range(i, len(dPoints), 2):
                 xx = dPoints[j][0]
                 yy = dPoints[j][1]
@@ -321,7 +354,205 @@ def generateSteps(dPoints):
                     legPos[3] = posss
                     res[3].append(posss)
 
-                    print("found, setting leg pos to: " + str(posss))
+                    # print("found, setting leg pos to: " + str(posss))
+
+                    break
+
+    return res
+
+
+def generateStepsSlow(dPoints):
+    maxDist = 200
+    width = 110
+    height = 183
+    legDist = 150
+    # leg max outwards reach
+    outX = 120
+    outDist = math.sqrt(outX ** 2 + maxDist ** 2)
+    # leg max inwards reach
+    inX = 50
+    inDist = math.sqrt(inX ** 2 + maxDist ** 2)
+    # legPos=[[0,0],[0,0],[0,0],[0,0]]
+    legPos = [[height / 2 + outX, width / 2 + legDist],
+              [height / 2 - inX + (outX + inX) * 1 / 3, -width / 2 - legDist],
+              [-height / 2 + inX - (outX + inX) * 1 / 3, width / 2 + legDist],
+              [-height / 2 - outX, -width / 2 - legDist]]  # initial positions of legs
+
+    # legPos = [[height / 2 + math.sqrt(maxDist**2 - legDist**2)/2, width / 2 + legDist],
+    #           [height / 2 + math.sqrt(maxDist**2 - legDist**2) * 1 / 6, -width / 2 - legDist],
+    #           [-height / 2 - math.sqrt(maxDist**2 - legDist**2) * 1 / 6, width / 2 + legDist],
+    #           [-height / 2 - math.sqrt(maxDist**2 - legDist**2)/2, -width / 2 - legDist]]  # initial positions of legs
+
+    tLeftS.set_xdata([legPos[0][0]])
+    tLeftS.set_ydata([legPos[0][1]])
+
+    tRightS.set_xdata([legPos[1][0]])
+    tRightS.set_ydata([legPos[1][1]])
+
+    bLeftS.set_xdata([legPos[2][0]])
+    bLeftS.set_ydata([legPos[2][1]])
+
+    bRightS.set_xdata([legPos[3][0]])
+    bRightS.set_ydata([legPos[3][1]])
+
+    res = [[], [], [], []]
+
+    for i in range(0, len(dPoints), 2):
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+        plt.pause(0.01)
+        # print(i)
+        x = dPoints[i][0]
+        y = dPoints[i][1]
+        ang = dPoints[i + 1]
+
+        curS.set_xdata([x])
+        curS.set_ydata([y])
+
+        r = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
+
+        tmpAng = math.atan2(width / 2, height / 2)
+        topLeft = [r * math.cos(tmpAng + ang) + x, r * math.sin(tmpAng + ang) + y]
+
+        tmpAng = math.atan2(-width / 2, height / 2)
+        topRight = [r * math.cos(tmpAng + ang) + x, r * math.sin(tmpAng + ang) + y]
+
+        tmpAng = math.atan2(width / 2, -height / 2)
+        botLeft = [r * math.cos(tmpAng + ang) + x, r * math.sin(tmpAng + ang) + y]
+
+        tmpAng = math.atan2(-width / 2, -height / 2)
+        botRight = [r * math.cos(tmpAng + ang) + x, r * math.sin(tmpAng + ang) + y]
+
+        tLeftS2.set_xdata([topLeft[0]])
+        tLeftS2.set_ydata([topLeft[1]])
+
+        tRightS2.set_xdata([topRight[0]])
+        tRightS2.set_ydata([topRight[1]])
+
+        bLeftS2.set_xdata([botLeft[0]])
+        bLeftS2.set_ydata([botLeft[1]])
+
+        bRightS2.set_xdata([botRight[0]])
+        bRightS2.set_ydata([botRight[1]])
+
+        # print(str(dist(legPos[0], topLeft)) + "    (" + str(legPos[0]) + " and " + str(topLeft) + ")")
+        # print(str(topLeft) + " " + str(topRight) + " " + str(botLeft) + " " + str(botRight))
+
+        if dist(legPos[0], topLeft) > inDist:
+            # print("too long")
+            for j in range(i, len(dPoints), 2):
+                xx = dPoints[j][0]
+                yy = dPoints[j][1]
+                angg = dPoints[j + 1]
+
+                poss = [xx - (width / 2 + legDist) * math.sin(angg),
+                        yy + (width / 2 + legDist) * math.cos(angg)]
+
+                xxL = dPoints[j][0]
+                yyL = dPoints[j][1]
+                anggL = dPoints[j + 1]
+
+                possL = [xxL - (width / 2 + legDist) * math.sin(anggL),
+                         yyL + (width / 2 + legDist) * math.cos(anggL)]
+
+                distt = dist(poss, topLeft)
+                distL = dist(possL, topLeft)
+
+                # print("testing " + str(dist(poss, topLeft)))
+
+                if distt > outDist and distL < distt:
+                    xxx = dPoints[j - 2][0]
+                    yyy = dPoints[j - 2][1]
+                    anggg = dPoints[j - 2 + 1]
+
+                    posss = [xxx - (width / 2 + legDist) * math.sin(anggg),
+                             yyy + (width / 2 + legDist) * math.cos(anggg)]
+
+                    legPos[0] = posss
+                    res[0].append(posss)
+
+                    tLeftS.set_xdata([posss[0]])
+                    tLeftS.set_ydata([posss[1]])
+
+                    break
+        elif dist(legPos[1], topRight) > inDist:
+            # print("too long")
+            for j in range(i, len(dPoints), 2):
+                xx = dPoints[j][0]
+                yy = dPoints[j][1]
+                angg = dPoints[j + 1]
+
+                poss = [xx + (width / 2 + legDist) * math.sin(angg),
+                        yy - (width / 2 + legDist) * math.cos(angg)]
+
+                # print("testing " + str(dist(poss, topRight)))
+
+                if dist(poss, topRight) > outDist:
+                    xxx = dPoints[j - 2][0]
+                    yyy = dPoints[j - 2][1]
+                    anggg = dPoints[j - 2 + 1]
+
+                    posss = [xxx + (width / 2 + legDist) * math.sin(anggg),
+                             yyy - (width / 2 + legDist) * math.cos(anggg)]
+
+                    legPos[1] = posss
+                    res[1].append(posss)
+
+                    tRightS.set_xdata([posss[0]])
+                    tRightS.set_ydata([posss[1]])
+
+                    break
+        elif dist(legPos[2], botLeft) > outDist:
+            # print("too long")
+            for j in range(i, len(dPoints), 2):
+                xx = dPoints[j][0]
+                yy = dPoints[j][1]
+                angg = dPoints[j + 1]
+
+                poss = [xx - (width / 2 + legDist) * math.sin(angg),
+                        yy + (width / 2 + legDist) * math.cos(angg)]
+
+                # print("testing " + str(dist(poss, topRight)))
+
+                if dist(poss, botLeft) > inDist:
+                    xxx = dPoints[j - 2][0]
+                    yyy = dPoints[j - 2][1]
+                    anggg = dPoints[j - 2 + 1]
+
+                    posss = [xxx - (width / 2 + legDist) * math.sin(anggg),
+                             yyy + (width / 2 + legDist) * math.cos(anggg)]
+
+                    legPos[2] = posss
+                    res[2].append(posss)
+
+                    bLeftS.set_xdata([posss[0]])
+                    bLeftS.set_ydata([posss[1]])
+
+                    break
+        elif dist(legPos[3], botRight) > outDist:
+            # print("too long")
+            for j in range(i, len(dPoints), 2):
+                xx = dPoints[j][0]
+                yy = dPoints[j][1]
+                angg = dPoints[j + 1]
+
+                poss = [xx + (width / 2 + legDist) * math.sin(angg), yy - (width / 2 + legDist) * math.cos(angg)]
+
+                # print("testing " + str(dist(poss, topRight)))
+
+                if dist(poss, botRight) > inDist:
+                    xxx = dPoints[j - 2][0]
+                    yyy = dPoints[j - 2][1]
+                    anggg = dPoints[j - 2 + 1]
+
+                    posss = [xxx + (width / 2 + legDist) * math.sin(anggg),
+                             yyy - (width / 2 + legDist) * math.cos(anggg)]
+
+                    legPos[3] = posss
+                    res[3].append(posss)
+
+                    bRightS.set_xdata([posss[0]])
+                    bRightS.set_ydata([posss[1]])
 
                     break
 
@@ -366,6 +597,41 @@ def render(points):
     bRight.set_ydata(brY)
 
 
+def renderSlow(no):
+    tmppp, rendPoints, dirPoints = generate(points)
+
+    xs, ys = zip(*tmppp)
+    xP, yP = zip(*rendPoints)
+    ppp.set_xdata([])
+    ppp.set_ydata([])
+
+    # print(dirPoints)
+    # print(len(dirPoints))
+
+    # for i in range(0, len(dirPoints), 2):
+    #     # print(i)
+    #     xx = [dirPoints[i][0], dirPoints[i+1][0]]
+    #     yy = [dirPoints[i][1], dirPoints[i+1][1]]
+    #     ax.plot(xx,yy, 'go-', markersize = 1)
+
+    lineP.set_xdata(xs)
+    lineP.set_ydata(ys)
+
+    tLeft.set_xdata([])
+    tLeft.set_ydata([])
+
+    tRight.set_xdata([])
+    tRight.set_ydata([])
+
+    bLeft.set_xdata([])
+    bLeft.set_ydata([])
+
+    bRight.set_xdata([])
+    bRight.set_ydata([])
+
+    res = generateStepsSlow(dirPoints)
+
+
 def press(event):
     global pickedUp, pickedPoint
     if event.key == 'x' and pickedUp:
@@ -392,5 +658,6 @@ if __name__ == '__main__':
     text_box.on_submit(update)
 
     rad_box = mpw.TextBox(radiusBox, 'Radius (m):', initial="2")
+    rad_box.on_submit(renderSlow)
 
     plt.show()
