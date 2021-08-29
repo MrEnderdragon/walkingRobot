@@ -438,7 +438,7 @@ def generateStepsSlow(dPoints):
         # print(str(dist(legPos[0], topLeft)) + "    (" + str(legPos[0]) + " and " + str(topLeft) + ")")
         # print(str(topLeft) + " " + str(topRight) + " " + str(botLeft) + " " + str(botRight))
 
-        if dist(legPos[0], topLeft) > inDist:
+        if dist(legPos[0], topLeft) > maxDist:
             # print("too long")
             for j in range(i, len(dPoints), 2):
                 xx = dPoints[j][0]
@@ -460,7 +460,7 @@ def generateStepsSlow(dPoints):
 
                 # print("testing " + str(dist(poss, topLeft)))
 
-                if distt > outDist and distL < distt:
+                if distt > maxDist:
                     xxx = dPoints[j - 2][0]
                     yyy = dPoints[j - 2][1]
                     anggg = dPoints[j - 2 + 1]
@@ -475,7 +475,7 @@ def generateStepsSlow(dPoints):
                     tLeftS.set_ydata([posss[1]])
 
                     break
-        elif dist(legPos[1], topRight) > inDist:
+        elif dist(legPos[1], topRight) > maxDist:
             # print("too long")
             for j in range(i, len(dPoints), 2):
                 xx = dPoints[j][0]
@@ -487,7 +487,7 @@ def generateStepsSlow(dPoints):
 
                 # print("testing " + str(dist(poss, topRight)))
 
-                if dist(poss, topRight) > outDist:
+                if dist(poss, topRight) > maxDist:
                     xxx = dPoints[j - 2][0]
                     yyy = dPoints[j - 2][1]
                     anggg = dPoints[j - 2 + 1]
@@ -502,7 +502,7 @@ def generateStepsSlow(dPoints):
                     tRightS.set_ydata([posss[1]])
 
                     break
-        elif dist(legPos[2], botLeft) > outDist:
+        elif dist(legPos[2], botLeft) > maxDist:
             # print("too long")
             for j in range(i, len(dPoints), 2):
                 xx = dPoints[j][0]
@@ -514,7 +514,7 @@ def generateStepsSlow(dPoints):
 
                 # print("testing " + str(dist(poss, topRight)))
 
-                if dist(poss, botLeft) > inDist:
+                if dist(poss, botLeft) > maxDist:
                     xxx = dPoints[j - 2][0]
                     yyy = dPoints[j - 2][1]
                     anggg = dPoints[j - 2 + 1]
@@ -529,7 +529,7 @@ def generateStepsSlow(dPoints):
                     bLeftS.set_ydata([posss[1]])
 
                     break
-        elif dist(legPos[3], botRight) > outDist:
+        elif dist(legPos[3], botRight) > maxDist:
             # print("too long")
             for j in range(i, len(dPoints), 2):
                 xx = dPoints[j][0]
@@ -540,7 +540,7 @@ def generateStepsSlow(dPoints):
 
                 # print("testing " + str(dist(poss, topRight)))
 
-                if dist(poss, botRight) > inDist:
+                if dist(poss, botRight) > maxDist:
                     xxx = dPoints[j - 2][0]
                     yyy = dPoints[j - 2][1]
                     anggg = dPoints[j - 2 + 1]

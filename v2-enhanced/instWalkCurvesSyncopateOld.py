@@ -1,7 +1,7 @@
 import math
 import time
-#from pyax12.connection import Connection
-#import regMove
+from pyax12.connection import Connection
+import regMove
 # import sys
 from enum import Enum
 # import threading
@@ -11,7 +11,7 @@ import curves
 # import smbus
 
 # AX-12A motor connection
-#serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000)
+serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000)
 
 lenA = 18.5  # length of shoulder motor1 to shoulder motor 2
 lenB = 83  # length of upper arm
@@ -99,13 +99,6 @@ cornerAng = [math.atan2(width / 2, height / 2),
              math.atan2(width / 2, -height / 2),
              math.atan2(-width / 2, -height / 2)]
 
-cornerPoint = [ [height/2, width/2],
-                [height/2, -width/2],
-                [-height/2, width/2],
-                [-height/2, -width/2]]
-
-
-
 moveCountdown = [-1, -1, -1, -1]
 
 
@@ -145,7 +138,7 @@ def mainLoop():
         moveLegs(calcRots(coords[i], i), i)
 
     time.sleep(stdDelay)
-    #regMove.actAll(serial_connection)
+    regMove.actAll(serial_connection)
 
     dPoints = generate()
 
@@ -157,10 +150,14 @@ def mainLoop():
             bodyY = dPoints[posInd][1]
             bodyAng = dPoints[posInd + 1]
 
+            r = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
+
             bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
-            
-            for ind in range(4):
-                bodyCorners[ind] = relToAbs(cornerPoint[ind], [bodyX, bodyY], bodyAng)
+
+            bodyCorners[0] = [r * math.cos(cornerAng[0] + bodyAng) + bodyX, r * math.sin(cornerAng[0] + bodyAng) + bodyY]
+            bodyCorners[1] = [r * math.cos(cornerAng[1] + bodyAng) + bodyX, r * math.sin(cornerAng[1] + bodyAng) + bodyY]
+            bodyCorners[2] = [r * math.cos(cornerAng[2] + bodyAng) + bodyX, r * math.sin(cornerAng[2] + bodyAng) + bodyY]
+            bodyCorners[3] = [r * math.cos(cornerAng[3] + bodyAng) + bodyX, r * math.sin(cornerAng[3] + bodyAng) + bodyY]
 
             legMoved = -1
 
@@ -168,7 +165,7 @@ def mainLoop():
 
             for curLeg in range(0, 4):
                 if moveCountdown[curLeg] == 0:
-                    foundPos = findNext(dPoints, bodyCorners[curLeg], posInd, curLeg)
+                    foundPos = findNext(dPoints, bodyCorners[curLeg], posInd, refLeg)
                     legMoved = curLeg
                 if moveCountdown[curLeg] >= 0:
                     moveCountdown[curLeg] -= 1
@@ -182,12 +179,13 @@ def mainLoop():
 
                 # search for next step of reference leg, and count amount
                 for posIndNext in range(posInd, len(dPoints), 2):
-                    bodyX1 = dPoints[posIndNext][0]
-                    bodyY1 = dPoints[posIndNext][1]
-                    bodyAng1 = dPoints[posIndNext + 1]
-                    
-                    refCorner = relToAbs(cornerPoint[refLeg], [bodyX1, bodyY1], bodyAng1)
-                    
+                    bodyX = dPoints[posIndNext][0]
+                    bodyY = dPoints[posIndNext][1]
+                    bodyAng = dPoints[posIndNext + 1]
+
+                    r = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
+                    refCorner = [r * math.cos(cornerAng[refLeg] + bodyAng) + bodyX,
+                                 r * math.sin(cornerAng[refLeg] + bodyAng) + bodyY]
                     if dist(foundPos, refCorner) > maxLegReach:
                         found = True
                         break
@@ -196,12 +194,13 @@ def mainLoop():
 
                 if not found:  # loop around and search more
                     for posIndNext in range(0, posInd, 2):
-                        bodyX1 = dPoints[posIndNext][0]
-                        bodyY1 = dPoints[posIndNext][1]
-                        bodyAng1 = dPoints[posIndNext + 1]
-                        
-                        refCorner = relToAbs(cornerPoint[refLeg], [bodyX1, bodyY1], bodyAng1)
-                        
+                        bodyX = dPoints[posIndNext][0]
+                        bodyY = dPoints[posIndNext][1]
+                        bodyAng = dPoints[posIndNext + 1]
+
+                        r = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
+                        refCorner = [r * math.cos(cornerAng[refLeg] + bodyAng) + bodyX,
+                                     r * math.sin(cornerAng[refLeg] + bodyAng) + bodyY]
                         if dist(foundPos, refCorner) > maxLegReach:
                             found = True
                             break
@@ -219,19 +218,10 @@ def mainLoop():
 
             for i in range(4):  # calculate leg positions relative to body
                 tmpAng = math.atan2(legPos[i][1] - bodyCorners[i][1], legPos[i][0] - bodyCorners[i][0])
-                #???
-                relLegPos[i] = absToRel(legPos[i], bodyCorners[i], bodyAng, i % 2)
-                # add height
-                relLegPos[i].append(-walkHeight)
-                
                 relDist = dist(legPos[i], bodyCorners[i])
-                #relLegPos[i] = [relDist * math.cos(bodyAng - tmpAng), relDist * math.sin(bodyAng - tmpAng) * (-1 ** i), -walkHeight]  # invert y on right side (index 1 and 3)
-                if (relLegPos[i][1] < 0):
-                    print("aaa")
-                
+                relLegPos[i] = [relDist * math.cos(bodyAng - tmpAng), relDist * math.sin(bodyAng - tmpAng) * (-1 ** i), -walkHeight]  # invert y on right side (index 1 and 3)
                 print(str(i) + "-y:  " + str(relLegPos[i][1]))
                 print(str(i) + "-dist:  " + str(relDist))
-                print(str(i) + "-angle:  " + str(math.degrees(tmpAng)))
 
             # atan2(posY - carY, posX - carX) to get global angle
             # (global car angle) - (global leg angle) to get local angle
@@ -244,7 +234,7 @@ def mainLoop():
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
                 time.sleep(stdDelay)
-                #regMove.actAll(serial_connection)
+                regMove.actAll(serial_connection)
                 time.sleep(stdDelay)
 
                 time.sleep(timePerCycle)
@@ -260,7 +250,7 @@ def mainLoop():
                         execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
                 time.sleep(stdDelay)
-                #regMove.actAll(serial_connection)
+                regMove.actAll(serial_connection)
                 time.sleep(stdDelay)
 
                 time.sleep(timePerCycle)
@@ -272,9 +262,8 @@ def mainLoop():
 
                         # update relLegPos with forward pos
                         tmpAng = math.atan2(foundPos[1] - cornerCoords[1], foundPos[0] - cornerCoords[0])
-                        relLegPos[legMoved]  = absToRel(foundPos, cornerCoords, bodyAng, legMoved % 2)
-                        # add height
-                        relLegPos[legMoved].append(-walkHeight)
+                        relDist = dist(foundPos, cornerCoords)
+                        relLegPos[legMoved] = [relDist * math.cos(bodyAng - tmpAng), - relDist * math.sin(bodyAng - tmpAng), (-1)**leg * walkHeight]
 
                         # update legPos with forward pos
                         legPos[legMoved] = foundPos
@@ -286,7 +275,7 @@ def mainLoop():
                         execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
                 time.sleep(stdDelay)
-                #regMove.actAll(serial_connection)
+                regMove.actAll(serial_connection)
                 time.sleep(stdDelay)
 
                 time.sleep(timePerCycle)
@@ -296,24 +285,26 @@ def findNext(dPoints, cornerCoord, start, leg):
 
     searchDist = (width / 2 + lineDist)
 
-    foundInd = len(dPoints)-2
     for j in range(start, len(dPoints), 2):
         testX = dPoints[j][0]
         testY = dPoints[j][1]
         testAng = dPoints[j + 1]
-        
-        relPos = [0, searchDist * ((-1)**leg)] # flip to right side (legs 1 and 3)        
-        testPos = relToAbs(relPos, [testX, testY], testAng) 
+
+        testPos = [testX + searchDist * math.sin(testAng) * (-1**leg), testY - searchDist * math.cos(testAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
 
         if dist(testPos, cornerCoord) > maxLegReach:
-            foundInd = j -2
-            break
-        
-    foundX = dPoints[foundInd][0]
-    foundY = dPoints[foundInd][1]
-    foundAng = dPoints[foundInd + 1]
+            foundX = dPoints[j - 2][0]
+            foundY = dPoints[j - 2][1]
+            foundAng = dPoints[j - 2 + 1]
 
-    return relToAbs(relPos, [foundX, foundY], foundAng)
+            return [foundX + searchDist * math.sin(foundAng) * (-1**leg), foundY - searchDist * math.cos(foundAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
+
+    foundX = dPoints[len(dPoints)-2][0]
+    foundY = dPoints[len(dPoints)-2][1]
+    foundAng = dPoints[len(dPoints)-2 + 1]
+
+    return [foundX + searchDist * math.sin(foundAng) * (-1**leg), foundY - searchDist * math.cos(foundAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
+
 
 def generate():
     dirTmppp = []
@@ -401,47 +392,13 @@ def driveLeg(leg, motor, rot):
     toDrive = clamp(limits[motor][0], limits[motor][1], rot * (-1 if motor == 0 and leg == 1 or leg == 2 else 1)) * (
         -1 if motor == 0 and leg == 1 or leg == 2 else 1)
 
-   # regMove.regMove(serial_connection, legId[leg][motor], toDrive, speed=1023, degrees=True)
+    regMove.regMove(serial_connection, legId[leg][motor], toDrive, speed=1023, degrees=True)
 
 
 def clamp(inmin, inmax, num):
     return max(inmin, min(inmax, num))
 
 
-def relToAbs(rel_p, ref_p,  rad):
-     #rad = math.radians(degree)
-     cosd = math.cos(rad)
-     sind = math.sin(rad)
-     x = rel_p[0]
-     y = rel_p[1]
-     return [cosd * x - sind * y + ref_p[0], sind *x + cosd * y + ref_p[1]]
- 
- 
- 
-def absToRel(abs_p, ref_p,  ref_rad, flipY):
-     rel_x = abs_p[0] - ref_p[0]
-     rel_y = abs_p[1] - ref_p[1]
-     #rad = - math.radians(ref_degree)
-     cosd = math.cos(-ref_rad)
-     sind = math.sin(-ref_rad)
-     return [cosd * rel_x - sind * rel_y,  (sind * rel_x + cosd * rel_y) * ( (-1) ** flipY)]
-     
-
 # program start
 if __name__ == "__main__":
-    # print ( relToAbs([10,10], [0, 20] , 0))
-    # print ( relToAbs([10,10], [20, 0] , 0))
-    # print ( relToAbs([10,10], [10, 0] , math.radians(45)))
-    # print ( relToAbs([10,10], [10, 0] , math.radians(90)))
-    # print ( relToAbs([10,10], [10, 0] , math.radians(-45)))
-    # print ( relToAbs([10,10], [10, 0] , math.radians(-90)))
-    #
-    # print ( absToRel([10,10], [0, 0] , 0, 0))
-    # print ( absToRel([10,10], [10, 0] , math.radians(45), 0))
-    # print ( absToRel([10,10], [10, 0] , math.radians(-45), 0))
-    #
-    # print ( absToRel([10,10], [0, 0] , 0, 1))
-    # print ( absToRel([10,10], [10, 0] , math.radians(45) , 1))
-    # print ( absToRel([10,10], [10, 0] , math.radians(-45), 1))
-    
     mainLoop()

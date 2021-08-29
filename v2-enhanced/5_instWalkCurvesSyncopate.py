@@ -1,7 +1,10 @@
+runRobot = True
+
 import math
 import time
-from pyax12.connection import Connection
-import regMove
+if runRobot:
+    from pyax12.connection import Connection
+    import regMove
 # import sys
 from enum import Enum
 # import threading
@@ -11,7 +14,8 @@ import curves
 # import smbus
 
 # AX-12A motor connection
-serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000)
+if runRobot:
+    serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000)
 
 lenA = 18.5  # length of shoulder motor1 to shoulder motor 2
 lenB = 83  # length of upper arm
@@ -35,12 +39,14 @@ lineDist = 120
 # how much to lift leg to step
 liftHeight = 40
 # amount to tilt before stepping
-tiltHeight = 10
+tiltHeight = 20
 
 # leg max outwards reach
 outX = 120
+outDist = math.sqrt(outX**2 + lineDist**2)
 # leg max inwards reach
 inX = 50
+inDist = math.sqrt(inX**2 + lineDist**2)
 
 order = [0, 3, 1, 2]  # order to take steps
 
@@ -80,24 +86,39 @@ rotOffs = [0, 0, -20]
 
 driveAcc = 10  # accuracy of driving for curves (mm)
 # radius = 30*10  # millimeters * 10 = centimeters
-# driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, radius)),
-#                curves.quadBezier((radius, radius), (radius, radius*2), (0, radius*2)),
-#                curves.quadBezier((0, radius*2), (-radius, radius*2), (-radius, radius)),
-#                curves.quadBezier((-radius, radius), (-radius, 0), (0, 0))]
+# driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, -radius)),
+#                curves.quadBezier((radius, -radius), (radius, -radius*2), (0, -radius*2)),
+#                curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius)),
+#                curves.quadBezier((-radius, -radius), (-radius, 0), (0, 0))]
 
-radius = 100*10
-driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius*2, 0))]
+radius = 100 * 10
+driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius * 2, 0))]
 
-legPos = [[height/2+outX, width/2+lineDist], [height/2-inX+(outX+inX)*1/3, -width/2-lineDist], [-height/2+inX-(outX+inX)*1/3, width/2+lineDist], [-height/2-outX, -width/2-lineDist]]  # initial positions of legs
+# legPos = [[height / 2 + outX, width / 2 + lineDist],
+#           [height / 2 - inX + (outX + inX) * 1 / 3, -width / 2 - lineDist],
+#           [-height / 2 + inX - (outX + inX) * 1 / 3, width / 2 + lineDist],
+#           [-height / 2 - outX, -width / 2 - lineDist]]  # initial positions of legs
+
+legPos = [[height / 2 - inX, width / 2 + lineDist],
+          [height / 2 + outX - (outX + inX) * 1 / 3, -width / 2 - lineDist],
+          [-height / 2 + inX, width / 2 + lineDist],
+          [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]]  # initial positions of legs
+
 maxLegReach = 170
 
 refLeg = order[0]
+refFlag = True
 
 lastMoved = False
-cornerAng = [math.atan2(width / 2, height / 2),
-             math.atan2(-width / 2, height / 2),
-             math.atan2(width / 2, -height / 2),
-             math.atan2(-width / 2, -height / 2)]
+# cornerAng = [math.atan2(width / 2, height / 2),
+#              math.atan2(-width / 2, height / 2),
+#              math.atan2(width / 2, -height / 2),
+#              math.atan2(-width / 2, -height / 2)]
+
+cornerPoint = [[height / 2, width / 2],
+               [height / 2, -width / 2],
+               [-height / 2, width / 2],
+               [-height / 2, -width / 2]]
 
 moveCountdown = [-1, -1, -1, -1]
 
@@ -132,13 +153,14 @@ class inst:
 
 # Main loop
 def mainLoop():
-    global lastMoved, cornerAng
+    global lastMoved, cornerPoint, refFlag
 
     for i in range(len(coords)):
         moveLegs(calcRots(coords[i], i), i)
 
     time.sleep(stdDelay)
-    regMove.actAll(serial_connection)
+    if runRobot:
+        regMove.actAll(serial_connection)
 
     dPoints = generate()
 
@@ -150,14 +172,10 @@ def mainLoop():
             bodyY = dPoints[posInd][1]
             bodyAng = dPoints[posInd + 1]
 
-            r = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
-
             bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
-            bodyCorners[0] = [r * math.cos(cornerAng[0] + bodyAng) + bodyX, r * math.sin(cornerAng[0] + bodyAng) + bodyY]
-            bodyCorners[1] = [r * math.cos(cornerAng[1] + bodyAng) + bodyX, r * math.sin(cornerAng[1] + bodyAng) + bodyY]
-            bodyCorners[2] = [r * math.cos(cornerAng[2] + bodyAng) + bodyX, r * math.sin(cornerAng[2] + bodyAng) + bodyY]
-            bodyCorners[3] = [r * math.cos(cornerAng[3] + bodyAng) + bodyX, r * math.sin(cornerAng[3] + bodyAng) + bodyY]
+            for ind in range(4):
+                bodyCorners[ind] = locToGlob(cornerPoint[ind], [bodyX, bodyY], bodyAng)
 
             legMoved = -1
 
@@ -165,47 +183,46 @@ def mainLoop():
 
             for curLeg in range(0, 4):
                 if moveCountdown[curLeg] == 0:
-                    foundPos = findNext(dPoints, bodyCorners[curLeg], posInd, refLeg)
+                    foundPos = findNext(dPoints, bodyCorners[curLeg], posInd, curLeg)
                     legMoved = curLeg
                 if moveCountdown[curLeg] >= 0:
                     moveCountdown[curLeg] -= 1
 
-            if dist(legPos[refLeg], bodyCorners[refLeg]) > maxLegReach:  # test if reference leg is outside of its maximum range
+            tmpDist = dist(legPos[refLeg], bodyCorners[refLeg])
+
+            if (not refFlag) and tmpDist < inDist and tmpDist < outDist:
+                refFlag = True
+
+            if tmpDist > (inDist if refLeg <= 1 else outDist) and refFlag:  # test if reference leg is outside of its maximum range
                 print("out of range")
                 foundPos = findNext(dPoints, bodyCorners[refLeg], posInd, refLeg)
 
                 amTill = 0
                 found = False
+                refFlag = False
+
+                findFlag = False
 
                 # search for next step of reference leg, and count amount
-                for posIndNext in range(posInd, len(dPoints), 2):
-                    bodyX = dPoints[posIndNext][0]
-                    bodyY = dPoints[posIndNext][1]
-                    bodyAng = dPoints[posIndNext + 1]
+                for posIndNext in range(0, len(dPoints), 2):
 
-                    r = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
-                    refCorner = [r * math.cos(cornerAng[refLeg] + bodyAng) + bodyX,
-                                 r * math.sin(cornerAng[refLeg] + bodyAng) + bodyY]
-                    if dist(foundPos, refCorner) > maxLegReach:
+                    tmpPosInd = (posIndNext + posInd) % len(dPoints)
+
+                    findBodyX = dPoints[tmpPosInd][0]
+                    findBodyY = dPoints[tmpPosInd][1]
+                    findBodyAng = dPoints[tmpPosInd + 1]
+
+                    refCorner = locToGlob(cornerPoint[refLeg], [findBodyX, findBodyY], findBodyAng)
+                    findDist = dist(foundPos, refCorner)
+
+                    if (not findFlag) and findDist < inDist and findDist < outDist:
+                        findFlag = True
+
+                    if findDist > (inDist if refLeg <= 1 else outDist) and findFlag:
                         found = True
                         break
 
                     amTill += 1
-
-                if not found:  # loop around and search more
-                    for posIndNext in range(0, posInd, 2):
-                        bodyX = dPoints[posIndNext][0]
-                        bodyY = dPoints[posIndNext][1]
-                        bodyAng = dPoints[posIndNext + 1]
-
-                        r = math.sqrt((width / 2) ** 2 + (height / 2) ** 2)
-                        refCorner = [r * math.cos(cornerAng[refLeg] + bodyAng) + bodyX,
-                                     r * math.sin(cornerAng[refLeg] + bodyAng) + bodyY]
-                        if dist(foundPos, refCorner) > maxLegReach:
-                            found = True
-                            break
-
-                        amTill += 1
 
                 if found:
                     for moveTimerLeg in range(0, 4):
@@ -217,16 +234,7 @@ def mainLoop():
             relLegPos = [[], [], [], []]
 
             for i in range(4):  # calculate leg positions relative to body
-                tmpAng = math.atan2(legPos[i][1] - bodyCorners[i][1], legPos[i][0] - bodyCorners[i][0])
-                relDist = dist(legPos[i], bodyCorners[i])
-                relLegPos[i] = [relDist * math.cos(bodyAng - tmpAng), relDist * math.sin(bodyAng - tmpAng) * (-1 ** i), -walkHeight]  # invert y on right side (index 1 and 3)
-                print(str(i) + "-y:  " + str(relLegPos[i][1]))
-                print(str(i) + "-dist:  " + str(relDist))
-
-            # atan2(posY - carY, posX - carX) to get global angle
-            # (global car angle) - (global leg angle) to get local angle
-            # sin and cos to go back to local coordinates
-            # invert Y coord on right side of robot
+                relLegPos[i] = globToLoc(legPos[i], bodyCorners[i], bodyAng, i, -walkHeight)
 
             if lastMoved and legMoved == -1:  # un-tilt
                 lastMoved = False
@@ -234,23 +242,27 @@ def mainLoop():
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
                 time.sleep(stdDelay)
-                regMove.actAll(serial_connection)
+                if runRobot:
+                    regMove.actAll(serial_connection)
                 time.sleep(stdDelay)
 
                 time.sleep(timePerCycle)
 
             if legMoved != -1:  # a leg has reached its maximum, move it
+                print("leg moved: " + str(legMoved))
+                print("timers: " + str(moveCountdown))
                 lastMoved = True
                 for leg in range(4):  # move back and tilt
                     if leg == legMoved:
-                        execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight-tiltHeight]), leg)
+                        execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight - tiltHeight]), leg)
                     elif leg == opposites[legMoved]:
-                        execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight+tiltHeight]), leg)
+                        execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight + tiltHeight]), leg)
                     else:
                         execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
                 time.sleep(stdDelay)
-                regMove.actAll(serial_connection)
+                if runRobot:
+                    regMove.actAll(serial_connection)
                 time.sleep(stdDelay)
 
                 time.sleep(timePerCycle)
@@ -261,69 +273,75 @@ def mainLoop():
                         cornerCoords = bodyCorners[legMoved]
 
                         # update relLegPos with forward pos
-                        tmpAng = math.atan2(foundPos[1] - cornerCoords[1], foundPos[0] - cornerCoords[0])
-                        relDist = dist(foundPos, cornerCoords)
-                        relLegPos[legMoved] = [relDist * math.cos(bodyAng - tmpAng), - relDist * math.sin(bodyAng - tmpAng), (-1)**leg * walkHeight]
+                        relLegPos[legMoved] = globToLoc(foundPos, cornerCoords, bodyAng, legMoved % 2, -walkHeight)
 
                         # update legPos with forward pos
                         legPos[legMoved] = foundPos
 
-                        execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight+liftHeight]), leg)
+                        execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight + liftHeight]), leg)
                     elif leg == opposites[legMoved]:
-                        execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight+tiltHeight]), leg)
+                        execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight + tiltHeight]), leg)
                     else:
                         execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
                 time.sleep(stdDelay)
-                regMove.actAll(serial_connection)
+                if runRobot:
+                    regMove.actAll(serial_connection)
                 time.sleep(stdDelay)
 
                 time.sleep(timePerCycle)
 
 
 def findNext(dPoints, cornerCoord, start, leg):
-
     searchDist = (width / 2 + lineDist)
+    relPos = [0, searchDist * ((-1) ** leg)]  # flip to right side (legs 1 and 3)
+
+    back = inDist if leg <= 1 else outDist
+    front = outDist if leg <= 1 else inDist
+
+    foundInd = len(dPoints) - 2
+
+    flag = False
 
     for j in range(start, len(dPoints), 2):
         testX = dPoints[j][0]
         testY = dPoints[j][1]
         testAng = dPoints[j + 1]
 
-        testPos = [testX + searchDist * math.sin(testAng) * (-1**leg), testY - searchDist * math.cos(testAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
+        globLegTestPos = locToGlob(relPos, [testX, testY], testAng)
+        # locLegTestPos = globToLoc([testX, testY], relPos, testAng)  # find leg (test) pos relative to body corner
 
-        if dist(testPos, cornerCoord) > maxLegReach:
-            foundX = dPoints[j - 2][0]
-            foundY = dPoints[j - 2][1]
-            foundAng = dPoints[j - 2 + 1]
+        testDist = dist(globLegTestPos, cornerCoord)
 
-            return [foundX + searchDist * math.sin(foundAng) * (-1**leg), foundY - searchDist * math.cos(foundAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
+        if flag and testDist > front:
+            foundInd = j - 2
+            break
 
-    foundX = dPoints[len(dPoints)-2][0]
-    foundY = dPoints[len(dPoints)-2][1]
-    foundAng = dPoints[len(dPoints)-2 + 1]
+        if (not flag) and testDist < back and testDist < front:
+            flag = True
 
-    return [foundX + searchDist * math.sin(foundAng) * (-1**leg), foundY - searchDist * math.cos(foundAng) * (-1**leg)]  # flip to right side (legs 1 and 3)
+    foundX = dPoints[foundInd][0]
+    foundY = dPoints[foundInd][1]
+    foundAng = dPoints[foundInd + 1]
+
+    return locToGlob(relPos, [foundX, foundY], foundAng)
 
 
 def generate():
-    dirTmppp = []
-
+    dirTmp = []
     curOver = 0
 
     for pInd in range(len(driveCurves)):
 
-        curv = driveCurves[pInd]
-
-        pos, ang = curv.getPosDir(driveAcc, curOver)
-
-        curOver = (curOver + curv.getLength()) % driveAcc
+        curve = driveCurves[pInd]
+        pos, ang = curve.getPosDir(driveAcc, curOver)
+        curOver = (curOver + curve.getLength()) % driveAcc
 
         for i in range(len(pos)):
-            dirTmppp.append(pos[i])
-            dirTmppp.append(ang[i])
+            dirTmp.append(pos[i])
+            dirTmp.append(ang[i])
 
-    return dirTmppp
+    return dirTmp
 
 
 def dist(xy1, xy2):
@@ -331,7 +349,7 @@ def dist(xy1, xy2):
 
 
 def calcRots(xyz, leg):
-    x = xyz[0] * ((-1) ** (leg+1))  # invert x of legs 2 and 4 (int 1 and 3) (right side)
+    x = xyz[0] * ((-1) ** leg)  # invert x of legs 1 and 3 (right side)
     y = xyz[1]
     z = xyz[2]
 
@@ -392,11 +410,33 @@ def driveLeg(leg, motor, rot):
     toDrive = clamp(limits[motor][0], limits[motor][1], rot * (-1 if motor == 0 and leg == 1 or leg == 2 else 1)) * (
         -1 if motor == 0 and leg == 1 or leg == 2 else 1)
 
-    regMove.regMove(serial_connection, legId[leg][motor], toDrive, speed=1023, degrees=True)
+    if runRobot:
+        regMove.regMove(serial_connection, legId[leg][motor], toDrive, speed=1023, degrees=True)
 
 
 def clamp(inmin, inmax, num):
     return max(inmin, min(inmax, num))
+
+
+def locToGlob(loc_p, orig_p, rad):
+    cosAm = math.cos(rad)
+    sinAm = math.sin(rad)
+    x = loc_p[0]
+    y = loc_p[1]
+    return [(cosAm * x) - (sinAm * y) + orig_p[0], (sinAm * x) + (cosAm * y) + orig_p[1]]
+
+
+def globToLoc(glob_p, orig_p, orig_rot, flipY=0, zHeight=0):
+    # atan2(posY - carY, posX - carX) to get global angle
+    # (global car angle) - (global leg angle) to get local angle
+    # sin and cos to go back to local coordinates
+    # invert Y coord on right side of robot
+
+    rel_x = glob_p[0] - orig_p[0]
+    rel_y = glob_p[1] - orig_p[1]
+    cosAm = math.cos(-orig_rot)
+    sinAm = math.sin(-orig_rot)
+    return [cosAm * rel_x - sinAm * rel_y, (sinAm * rel_x + cosAm * rel_y) * ((-1) ** flipY), zHeight]
 
 
 # program start
