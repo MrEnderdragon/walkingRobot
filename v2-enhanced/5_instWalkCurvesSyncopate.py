@@ -1,4 +1,4 @@
-runRobot = True
+runRobot = False
 
 import math
 import time
@@ -39,7 +39,7 @@ lineDist = 120
 # how much to lift leg to step
 liftHeight = 40
 # amount to tilt before stepping
-tiltHeight = 20
+tiltHeight = 10
 
 # leg max outwards reach
 outX = 120
@@ -85,35 +85,24 @@ limits = [
 rotOffs = [0, 0, -20]
 
 driveAcc = 10  # accuracy of driving for curves (mm)
-# radius = 30*10  # millimeters * 10 = centimeters
-# driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, -radius)),
-#                curves.quadBezier((radius, -radius), (radius, -radius*2), (0, -radius*2)),
-#                curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius)),
-#                curves.quadBezier((-radius, -radius), (-radius, 0), (0, 0))]
+radius = 40*10  # millimeters * 10 = centimeters
+driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, -radius)),
+               curves.quadBezier((radius, -radius), (radius, -radius*2), (0, -radius*2)),
+               curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius)),
+               curves.quadBezier((-radius, -radius), (-radius, 0), (0, 0))]
 
-radius = 100 * 10
-driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius * 2, 0))]
-
-# legPos = [[height / 2 + outX, width / 2 + lineDist],
-#           [height / 2 - inX + (outX + inX) * 1 / 3, -width / 2 - lineDist],
-#           [-height / 2 + inX - (outX + inX) * 1 / 3, width / 2 + lineDist],
-#           [-height / 2 - outX, -width / 2 - lineDist]]  # initial positions of legs
+# radius = 100 * 10
+# driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius * 2, 0))]
 
 legPos = [[height / 2 - inX, width / 2 + lineDist],
           [height / 2 + outX - (outX + inX) * 1 / 3, -width / 2 - lineDist],
           [-height / 2 + inX, width / 2 + lineDist],
           [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]]  # initial positions of legs
 
-maxLegReach = 170
-
 refLeg = order[0]
 refFlag = True
 
 lastMoved = False
-# cornerAng = [math.atan2(width / 2, height / 2),
-#              math.atan2(-width / 2, height / 2),
-#              math.atan2(width / 2, -height / 2),
-#              math.atan2(-width / 2, -height / 2)]
 
 cornerPoint = [[height / 2, width / 2],
                [height / 2, -width / 2],
@@ -121,6 +110,8 @@ cornerPoint = [[height / 2, width / 2],
                [-height / 2, -width / 2]]
 
 moveCountdown = [-1, -1, -1, -1]
+
+lastFoundP = [0, 0, 0, 0]
 
 
 # Instruction types
@@ -153,7 +144,7 @@ class inst:
 
 # Main loop
 def mainLoop():
-    global lastMoved, cornerPoint, refFlag
+    global lastMoved, cornerPoint, refFlag, lastFoundP
 
     for i in range(len(coords)):
         moveLegs(calcRots(coords[i], i), i)
@@ -163,6 +154,11 @@ def mainLoop():
         regMove.actAll(serial_connection)
 
     dPoints = generate()
+
+    print("am points: " + str(len(dPoints)/2))
+
+    # for i in range(0, len(dPoints), 2):
+    #     print("(" + str(dPoints[i][0]) + "," + str(dPoints[i][1]) + ")")
 
     while True:
         for posInd in range(0, len(dPoints), 2):
@@ -183,7 +179,7 @@ def mainLoop():
 
             for curLeg in range(0, 4):
                 if moveCountdown[curLeg] == 0:
-                    foundPos = findNext(dPoints, bodyCorners[curLeg], posInd, curLeg)
+                    foundPos = findNext(dPoints, bodyCorners[curLeg], curLeg)
                     legMoved = curLeg
                 if moveCountdown[curLeg] >= 0:
                     moveCountdown[curLeg] -= 1
@@ -195,7 +191,7 @@ def mainLoop():
 
             if tmpDist > (inDist if refLeg <= 1 else outDist) and refFlag:  # test if reference leg is outside of its maximum range
                 print("out of range")
-                foundPos = findNext(dPoints, bodyCorners[refLeg], posInd, refLeg)
+                foundPos = findNext(dPoints, bodyCorners[refLeg], refLeg)
 
                 amTill = 0
                 found = False
@@ -251,6 +247,8 @@ def mainLoop():
             if legMoved != -1:  # a leg has reached its maximum, move it
                 print("leg moved: " + str(legMoved))
                 print("timers: " + str(moveCountdown))
+                print("poss: " + str(lastFoundP))
+                print("")
                 lastMoved = True
                 for leg in range(4):  # move back and tilt
                     if leg == legMoved:
@@ -292,7 +290,7 @@ def mainLoop():
                 time.sleep(timePerCycle)
 
 
-def findNext(dPoints, cornerCoord, start, leg):
+def findNext(dPoints, cornerCoord, leg):
     searchDist = (width / 2 + lineDist)
     relPos = [0, searchDist * ((-1) ** leg)]  # flip to right side (legs 1 and 3)
 
@@ -303,10 +301,12 @@ def findNext(dPoints, cornerCoord, start, leg):
 
     flag = False
 
-    for j in range(start, len(dPoints), 2):
-        testX = dPoints[j][0]
-        testY = dPoints[j][1]
-        testAng = dPoints[j + 1]
+    for j in range(0, len(dPoints)*2, 2):
+        toGo = (j + lastFoundP[leg]) % len(dPoints)
+
+        testX = dPoints[toGo][0]
+        testY = dPoints[toGo][1]
+        testAng = dPoints[toGo + 1]
 
         globLegTestPos = locToGlob(relPos, [testX, testY], testAng)
         # locLegTestPos = globToLoc([testX, testY], relPos, testAng)  # find leg (test) pos relative to body corner
@@ -314,15 +314,19 @@ def findNext(dPoints, cornerCoord, start, leg):
         testDist = dist(globLegTestPos, cornerCoord)
 
         if flag and testDist > front:
-            foundInd = j - 2
+            foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
+            print("found for leg " + str(leg))
             break
 
         if (not flag) and testDist < back and testDist < front:
             flag = True
+            print("flag set for leg " + str(leg))
 
     foundX = dPoints[foundInd][0]
     foundY = dPoints[foundInd][1]
     foundAng = dPoints[foundInd + 1]
+
+    lastFoundP[leg] = foundInd
 
     return locToGlob(relPos, [foundX, foundY], foundAng)
 
