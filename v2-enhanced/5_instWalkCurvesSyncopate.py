@@ -10,8 +10,8 @@ from enum import Enum
 # import threading
 # import multiprocessing
 import curves
-
 # import smbus
+PI = 3.1415
 
 # AX-12A motor connection
 if runRobot:
@@ -21,8 +21,8 @@ lenA = 18.5  # length of shoulder motor1 to shoulder motor 2
 lenB = 83  # length of upper arm
 lenC = 120  # length of lower arm
 
-width = 110  # width of robot
-height = 183  # length of robot
+width = 112.6  # width of robot
+height = 183.8  # length of robot
 
 # amount of moves for every step
 stepsPerCycle = 1
@@ -44,9 +44,11 @@ tiltHeight = 10
 # leg max outwards reach
 outX = 120
 outDist = math.sqrt(outX**2 + lineDist**2)
+outAng = math.atan2(outX, lineDist)
 # leg max inwards reach
 inX = 50
 inDist = math.sqrt(inX**2 + lineDist**2)
+inAng = math.atan2(inX, lineDist)
 
 order = [0, 3, 1, 2]  # order to take steps
 
@@ -85,14 +87,14 @@ limits = [
 rotOffs = [0, 0, -20]
 
 driveAcc = 10  # accuracy of driving for curves (mm)
-radius = 40*10  # millimeters * 10 = centimeters
-driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, -radius)),
-               curves.quadBezier((radius, -radius), (radius, -radius*2), (0, -radius*2)),
-               curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius)),
-               curves.quadBezier((-radius, -radius), (-radius, 0), (0, 0))]
+# radius = 40*10  # millimeters * 10 = centimeters
+# driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, -radius)),
+#                curves.quadBezier((radius, -radius), (radius, -radius*2), (0, -radius*2)),
+#                curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius)),
+#                curves.quadBezier((-radius, -radius), (-radius, 0), (0, 0))]
 
-# radius = 100 * 10
-# driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius * 2, 0))]
+radius = 70 * 10
+driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0)), curves.quadBezier((radius, 0), (radius+radius, 0), (radius+radius, -radius))]
 
 legPos = [[height / 2 - inX, width / 2 + lineDist],
           [height / 2 + outX - (outX + inX) * 1 / 3, -width / 2 - lineDist],
@@ -155,7 +157,7 @@ def mainLoop():
 
     dPoints = generate()
 
-    print("am points: " + str(len(dPoints)/2))
+    print("am points: " + str(len(dPoints)))
 
     # for i in range(0, len(dPoints), 2):
     #     print("(" + str(dPoints[i][0]) + "," + str(dPoints[i][1]) + ")")
@@ -179,7 +181,7 @@ def mainLoop():
 
             for curLeg in range(0, 4):
                 if moveCountdown[curLeg] == 0:
-                    foundPos = findNext(dPoints, bodyCorners[curLeg], curLeg)
+                    foundPos = findNext(dPoints, bodyCorners[curLeg], bodyAng, curLeg)
                     legMoved = curLeg
                 if moveCountdown[curLeg] >= 0:
                     moveCountdown[curLeg] -= 1
@@ -191,7 +193,7 @@ def mainLoop():
 
             if tmpDist > (inDist if refLeg <= 1 else outDist) and refFlag:  # test if reference leg is outside of its maximum range
                 print("out of range")
-                foundPos = findNext(dPoints, bodyCorners[refLeg], refLeg)
+                foundPos = findNext(dPoints, bodyCorners[refLeg], bodyAng, refLeg)
 
                 amTill = 0
                 found = False
@@ -235,6 +237,9 @@ def mainLoop():
             if lastMoved and legMoved == -1:  # un-tilt
                 lastMoved = False
                 for leg in range(4):
+                    if leg == 2 or leg == 3:
+                        print("important:")
+                        print(str(leg) + " position: " + str(int(relLegPos[leg][0])) + ", " + str(int(relLegPos[leg][1])) + ", " + str(int(relLegPos[leg][2])))
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
                 time.sleep(stdDelay)
@@ -290,14 +295,18 @@ def mainLoop():
                 time.sleep(timePerCycle)
 
 
-def findNext(dPoints, cornerCoord, leg):
+def findNext(dPoints, cornerCoord, bodyAng, leg):
     searchDist = (width / 2 + lineDist)
     relPos = [0, searchDist * ((-1) ** leg)]  # flip to right side (legs 1 and 3)
+    refAng = (bodyAng + (0.5*PI if leg % 2 == 0 else 1.5*PI)) % (2*PI)
 
     back = inDist if leg <= 1 else outDist
     front = outDist if leg <= 1 else inDist
 
-    foundInd = len(dPoints) - 2
+    backAng = inAng if leg <= 1 else outAng
+    frontAng = outAng if leg <= 1 else inAng
+
+    foundInd = lastFoundP[leg]
 
     flag = False
 
@@ -310,15 +319,27 @@ def findNext(dPoints, cornerCoord, leg):
 
         globLegTestPos = locToGlob(relPos, [testX, testY], testAng)
         # locLegTestPos = globToLoc([testX, testY], relPos, testAng)  # find leg (test) pos relative to body corner
+        testAng = (math.atan2(globLegTestPos[1]-cornerCoord[1], globLegTestPos[0]-cornerCoord[0]) + (2*PI)) % (2*PI)
+        # diffAng = abs(testAng-refAng)
+        diffAng = (testAng-refAng) * ((-1) ** (leg+1))  # flip on legs 0 and 2
 
         testDist = dist(globLegTestPos, cornerCoord)
 
-        if flag and testDist > front:
+        # if flag and testDist > front:
+        #     foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
+        #     print("found for leg " + str(leg))
+        #     break
+        #
+        # if (not flag) and testDist < back and testDist < front:
+        #     flag = True
+        #     print("flag set for leg " + str(leg))
+
+        if flag and (diffAng > frontAng or testDist > max(front, back)):
             foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
             print("found for leg " + str(leg))
             break
 
-        if (not flag) and testDist < back and testDist < front:
+        if (not flag) and abs(diffAng) < min(backAng, frontAng) and testDist < max(front, back):
             flag = True
             print("flag set for leg " + str(leg))
 
@@ -375,6 +396,10 @@ def calcRots(xyz, leg):
 
 # Drive all motors of a leg
 def moveLegs(rots, leg):
+
+    if leg == 2 or leg == 3:
+        print(str(leg) + ": " + str(int(rots[0])) + ", " + str(int(rots[1])) + ", " + str(int(rots[2])))
+
     driveLeg(leg, 0, rots[0])
 
     time.sleep(stdDelay)
