@@ -124,7 +124,7 @@ if __name__ == "__main__":
             cv2.imshow("disparity off", frameDisp)
 
             if cv2.waitKey() == ord('s'):
-                cv2.imwrite('./images/depthSPLR-' + str(counter) + '.png', frame.astype(np.uint16))
+                cv2.imwrite('./depthImagesOLD/depthSPLR-' + str(counter) + '.png', frame.astype(np.uint16))
                 counter += 1
 
             if cv2.waitKey(1) == ord('q'):
