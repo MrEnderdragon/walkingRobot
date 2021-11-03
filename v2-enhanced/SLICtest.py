@@ -137,7 +137,7 @@ if __name__ == "__main__":
         # Constructing test image
         imgId = "SPLR-" + str(i) + ".png"
         colour = cv2.imread("colImages/col" + imgId, cv2.IMREAD_UNCHANGED)
-        disp = cv2.imread("dispImages/depth" + imgId, cv2.IMREAD_UNCHANGED)
+        disp = cv2.imread("dispImages/disp" + imgId, cv2.IMREAD_UNCHANGED)
         disp255 = cv2.convertScaleAbs(disp*10, alpha=(255.0/65535.0))
 
         colSmall = cv2.resize(colour, (int(disp.shape[1]/2), int(disp.shape[0]/2)), interpolation=cv2.INTER_AREA)

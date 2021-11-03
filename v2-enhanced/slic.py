@@ -44,7 +44,7 @@ def SLIC(image, k, m, its):
 
     for itt in range(its):
 
-        print("slic it" + str(itt) + " starting")
+        print("slic it" + str(itt+1) + " starting")
 
         for ind in range(len(c)):
             cc = c[ind]
@@ -84,6 +84,6 @@ def SLIC(image, k, m, its):
 
         c = newC
 
-        print("slic it" + str(itt) + " finished")
+        print("slic it" + str(itt+1) + " finished")
 
     return pixLab, pixDist, c

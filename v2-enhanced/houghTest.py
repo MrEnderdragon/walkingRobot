@@ -14,7 +14,7 @@ if __name__ == "__main__":
         # Constructing test image
         imgId = "SPLR-" + str(i) + ".png"
         image = cv2.imread("vDisp/v" + imgId, cv2.IMREAD_UNCHANGED)
-        disp = cv2.imread("dispImages/depth" + imgId, cv2.IMREAD_UNCHANGED)
+        disp = cv2.imread("dispImages/disp" + imgId, cv2.IMREAD_UNCHANGED)
         disp = cv2.convertScaleAbs(disp*10, alpha=(255.0/65535.0))
 
         # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))

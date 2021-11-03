@@ -1,10 +1,7 @@
 import numpy as np
 import cv2
 from skimage.transform import hough_line, hough_line_peaks
-import slic
-from skimage.feature import canny
-from skimage.draw import line
-from skimage import data
+import slic as slic
 import math
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -15,7 +12,7 @@ if __name__ == "__main__":
         # Constructing test image
         imgId = "SPLR-" + str(i) + ".png"
         image = cv2.imread("vDisp/v" + imgId, cv2.IMREAD_UNCHANGED)
-        dispRaw = cv2.imread("dispImages/depth" + imgId, cv2.IMREAD_UNCHANGED)
+        dispRaw = cv2.imread("dispImages/disp" + imgId, cv2.IMREAD_UNCHANGED)
         disp = np.copy(dispRaw)
         colour = cv2.imread("RImages/R" + imgId, cv2.IMREAD_COLOR)
 

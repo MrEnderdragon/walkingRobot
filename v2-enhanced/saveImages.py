@@ -4,15 +4,17 @@ import depthai as dai
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 import numpy as np
+import UVdisp
 
 # Closer-in minimum depth, disparity range is doubled (from 95 to 190):
 extended_disparity = False  # doesn't work
 # Better accuracy for longer distance, fractional disparity 32-levels:
-subpixel = False
+subpixel = True
 # Better handling for occlusions:
-lr_check = False
+lr_check = True
 
-focalLen = 19.6 * 100
+focalLen = 441.25*31.35
+baseline = 7.5*10
 # focalLen = 2000
 
 # Create pipeline
@@ -68,7 +70,8 @@ monoRight.out.link(disp.right)
 monoLeft.out.link(outL.input)
 monoRight.out.link(outR.input)
 
-disp.disparity.link(outDisp.input)
+disp.depth.link(outDisp.input)
+
 col.still.link(stillEncoder.input)
 controlIn.out.link(col.inputControl)
 stillEncoder.bitstream.link(outCol.input)
@@ -94,13 +97,13 @@ if __name__ == "__main__":
             ctrl.setCaptureStill(True)
             controlQueue.send(ctrl)
 
-            inDepth = q.get()  # blocking call, will wait until a new data has arrived
+            inDisp = q.get()  # blocking call, will wait until a new data has arrived
             inCol = qCol.tryGetAll()
 
             inL = qL.get()
             inR = qR.get()
 
-            frame = inDepth.getFrame()
+            frame = inDisp.getFrame()
 
             frameCol = frame
 
@@ -111,20 +114,30 @@ if __name__ == "__main__":
             frameR = inR.getCvFrame()
 
             # Normalization for better visualization
-            frameDisp = cv2.convertScaleAbs(frame*10, alpha=(255.0/65535.0))
+            frameDep = cv2.convertScaleAbs(frame*10, alpha=(255.0/65535.0))
+
+            frameDispCalc = np.divide(focalLen*baseline, frame)
 
             # frameCol = cv2.cvtColor(frameCol, cv2.COLOR_BGR2RGB)
 
             # Available color maps: https://docs.opencv.org/3.4/d3/d50/group__imgproc__colormap.html
-            frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_TWILIGHT)
-            cv2.imshow("disparity", frameDisp)
+            frameDep = cv2.applyColorMap(frameDep, cv2.COLORMAP_TWILIGHT)
+            cv2.imshow("depth", frameDep)
+            cv2.imshow("dispCalc", cv2.applyColorMap(cv2.convertScaleAbs(frameDispCalc*10, alpha=(255.0/65535.0)), cv2.COLORMAP_TWILIGHT))
             cv2.imshow("color", frameCol)
 
             if cv2.waitKey() == ord('s'):
-                cv2.imwrite('./dispImages/depth' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frame.astype(np.uint16))
+                cv2.imwrite('./dispImages/disp' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frameDispCalc.astype(np.uint16))
+                cv2.imwrite('./depImages/depth' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frame.astype(np.uint16))
                 cv2.imwrite('./colImages/col' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frameCol)
                 cv2.imwrite('./LImages/L' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frameL)
                 cv2.imwrite('./RImages/R' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frameR)
+
+                vDisp, uDisp = UVdisp.uvDisp(frame)
+
+                cv2.imwrite('./vDisp/vDisp' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', vDisp)
+                cv2.imwrite('./uDisp/uDisp' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', uDisp)
+
                 counter += 1
 
             if cv2.waitKey(1) == ord('q'):

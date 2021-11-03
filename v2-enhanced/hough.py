@@ -29,11 +29,13 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
         # print(refSmall.shape)
         pixLab, _, cc = slic.SLIC(refSmall, args["k"] if "k" in args else 100, args["m"] if "m" in args else 25, args["its"] if "its" in args else 5)
 
-        avgs = np.zeros(len(cc), dtype=np.uint16)
+        avgs = np.zeros(len(cc), dtype=np.float_)
         amsRaw = np.zeros(len(cc))
         ams = np.zeros(len(cc))
 
         pixLab = cv2.resize(pixLab, (disp.shape[1], disp.shape[0]), interpolation=cv2.INTER_AREA)
+
+        cv2.imshow("mm", cv2.applyColorMap(pixLab.astype(np.uint8)*10, cv2.COLORMAP_JET))
 
         rows, cols = disp.shape
         for row in range(rows):
@@ -43,8 +45,10 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
                     avgs[pixLab[row, col]] += disp[row, col]
                     ams[pixLab[row, col]] += 1
 
-        for ccInd in range(avgs.shape[0]):
-            avgs[ccInd] = 0 if float(ams[ccInd])/amsRaw[ccInd] < 0.25 else int(avgs[ccInd] / ams[ccInd])
+        avgs = np.divide(avgs, ams, out=np.zeros_like(avgs), where=ams != 0)
+        avgs[np.divide(ams, amsRaw, where=amsRaw != 0) < 0.1] = 0
+
+        avgs = avgs.astype(np.uint32)
 
         for row in range(rows):
             for col in range(cols):
