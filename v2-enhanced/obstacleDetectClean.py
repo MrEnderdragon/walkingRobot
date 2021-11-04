@@ -3,19 +3,19 @@ import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 print("mayavi load")
-import mayavi.mlab
+# import mayavi.mlab
 
-focalLen = 19.6  # mm
+focalLen = 19.6 * 10  # mm
 focalLen = 441.25  # pixels
 ppmm = 1000/3  # pixels per mm, 1p = 3um
 baseline = 7.5 * 10  # mm
 
 maxSize = 5000
-step = int(maxSize / 100)
+step = int(maxSize / 50)
 
 mid = [maxSize / 10, maxSize / 2, 0]
 
-thresh = (30/1000000)*(step**3)
+thresh = (10000/1000000)*(step**3)
 
 fig = plt.figure(300)
 ax = plt.axes()
@@ -45,20 +45,33 @@ def mapPoints(inX, inY, depth):
     if depth == 0:
         return None
 
-    x_over_z = inX / focalLen
-    y_over_z = inY / focalLen
-    zz = depth / np.sqrt(1. + x_over_z ** 2 + y_over_z ** 2)
-    xx = x_over_z * zz
-    yy = y_over_z * zz
-    return [xx, yy, zz]
+    # x_over_z = inX / focalLen
+    # y_over_z = inY / focalLen
+    # zz = depth / np.sqrt(focalLen + x_over_z ** 2 + y_over_z ** 2)
+    # xx = x_over_z * zz
+    # yy = y_over_z * zz
+
+    conv = depth / np.sqrt(focalLen**2 + inX ** 2 + inY ** 2)
+
+    return [inX*conv, inY*conv, focalLen*conv]
 
 
-# def mapArr(depth):
-#     if depth == 0:
-#         return None
-#
-#     conv = depth/focalLen
-#     return [inX * conv, inY * conv, focalLen * conv]
+def mapArr(depth):
+    # if depth == 0:
+    #     return None
+
+    imgRows, imgCols = depth.shape
+
+    xs = np.arange(-imgCols+int(imgCols/2)+1, int(imgCols/2)+1)
+    xs = np.tile(xs, (imgRows, 1))
+
+    ys = np.arange(-imgRows + int(imgRows / 2) + 1, int(imgRows / 2) + 1)
+    ys = np.tile(ys, (imgCols, 1))
+    ys = np.transpose(ys)
+
+    conv = np.divide(depth, np.sqrt(focalLen**2 + np.square(xs) + np.square(ys)))
+
+    return np.array([xs * conv, ys * conv, conv * focalLen])
 
 
 def fits(minVal, maxVal, arr):
@@ -107,22 +120,56 @@ if __name__ == "__main__":
 
         flatGrid = np.zeros((int(maxSize/step)+1, int(maxSize/step)+1, 3), dtype=np.uint8)
 
-        rows, cols = dep.shape
-        for row in range(rows):
-            print(row)
-            for col in range(cols):
-                coords = mapPoints(row - rows / 2, col - cols / 2, dep[row, col])
+        depToUse = dep
 
-                if coords is not None:
-                    coords = scale(coords, mid)
+        mapImg = mapArr(depToUse)
 
-                    if fits(0, maxSize, coords):
+        mapFloorLess = mapImg[:, :, :] * floor[None, :, :]
+        mapFloor = mapImg[:, :, :] * (1-floor[None, :, :])
 
-                        if floor[row, col]:
-                            shellGrid[int(coords[0]/step), int(coords[1]/step), int(coords[2]/step)] += 1
-                            colorGrid[int(coords[0] / step), int(coords[1] / step), int(coords[2] / step)] += colour[row][col][0]
-                        else:
-                            floorGrid[int(coords[0]/step), int(coords[1]/step), int(coords[2]/step)] += 1
+        print(mapFloorLess.shape)
+        print(np.where(mapFloorLess[2, :, :] > 0))
+
+        floorLessCoords = np.where(np.all([mapFloorLess[0, :, :] > 0,
+                                           mapFloorLess[1, :, :] > 0,
+                                           mapFloorLess[2, :, :] > 0,
+                                           mapFloorLess[0, :, :] < maxSize,
+                                           mapFloorLess[1, :, :] < maxSize,
+                                           mapFloorLess[2, :, :] < maxSize], axis=0))
+
+        floorCoords = np.where(np.all([mapFloor[0, :, :] > 0,
+                                       mapFloor[1, :, :] > 0,
+                                       mapFloor[2, :, :] > 0,
+                                       mapFloor[0, :, :] < maxSize,
+                                       mapFloor[1, :, :] < maxSize,
+                                       mapFloor[2, :, :] < maxSize], axis=0))
+
+        print("start1")
+        np.add.at(shellGrid, (mapFloorLess[:, floorLessCoords[0], floorLessCoords[1]] / step).astype(int), 1)
+        print("start2")
+        np.add.at(floorGrid, (mapFloor[:, floorCoords[0], floorCoords[1]] / step).astype(int), 1)
+
+        print(shellGrid)
+        print(floorLessCoords)
+        print((mapFloorLess[:, floorLessCoords[0], floorLessCoords[1]] / step).astype(int))
+
+        #
+        # rows, cols = dep.shape
+        # for row in range(rows):
+        #     print(row)
+        #     for col in range(cols):
+        #         coords = mapPoints(row - rows / 2, col - cols / 2, dep[row, col])
+        #
+        #         if coords is not None:
+        #             coords = scale(coords, mid)
+        #
+        #             if fits(0, maxSize, coords):
+        #
+        #                 if floor[row, col]:
+        #                     shellGrid[int(coords[0]/step), int(coords[1]/step), int(coords[2]/step)] += 1
+        #                     colorGrid[int(coords[0] / step), int(coords[1] / step), int(coords[2] / step)] += colour[row][col][0]
+        #                 else:
+        #                     floorGrid[int(coords[0]/step), int(coords[1]/step), int(coords[2]/step)] += 1
 
         kernel_size = 5
         kernel = np.ones(kernel_size) / kernel_size
@@ -158,10 +205,10 @@ if __name__ == "__main__":
             if -10 < bx[voxInd] * step < 500:
                 flatGrid[by[voxInd], bz[voxInd]] = [0, 0, 255]
 
-            xzRatSmall = float(x-0.5)/z
-            xzRatBig = float(x+0.5)/z
-            yzRatSmall = float(y-0.5)/z
-            yzRatBig = float(y+0.5)/z
+            xzRatSmall = float(x-0.5)/z if z != 0 else 0
+            xzRatBig = float(x+0.5)/z if z != 0 else 0
+            yzRatSmall = float(y-0.5)/z if z != 0 else 0
+            yzRatBig = float(y+0.5)/z if z != 0 else 0
 
             for zz in range(int(z)+1, maxSize, step):
                 cont = False
@@ -186,10 +233,10 @@ if __name__ == "__main__":
             if -10 < cx[voxInd] * step < 500 and eq(flatGrid[cy[voxInd], cz[voxInd]], [0, 0, 0]):
                 flatGrid[cy[voxInd], cz[voxInd]] = [0, 255, 0]
 
-            xzRatSmall = float(x - 0.5) / z
-            xzRatBig = float(x + 0.5) / z
-            yzRatSmall = float(y - 0.5) / z
-            yzRatBig = float(y + 0.5) / z
+            xzRatSmall = float(x - 0.5) / z if z != 0 else 0
+            xzRatBig = float(x + 0.5) / z if z != 0 else 0
+            yzRatSmall = float(y - 0.5) / z if z != 0 else 0
+            yzRatBig = float(y + 0.5) / z if z != 0 else 0
 
             for zz in range(int(z) + 1, maxSize, step):
                 cont = False
