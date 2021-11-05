@@ -101,8 +101,8 @@ if __name__ == "__main__":
         x1, y1 = np.where(floor > 0)
         z1=dep[x1,y1]
         
-        x1= ((x1 - rows/2 + 80) * z1/focalLen * -1 + maxSize /10)/step
-        y1= ((y1- cols/2) * z1/focalLen + maxSize / 2)/step
+        x1= ((x1 - rows/2) * z1/focalLen * -1 + maxSize /10)/step
+        y1= ((y1 - cols/2) * z1/focalLen + maxSize / 2)/step
         z1=z1/step
         
         x1 =x1.astype(int).reshape(x1.shape[0], 1)
