@@ -110,7 +110,7 @@ if __name__ == '__main__':
         # cv2.imshow("ttt", obstacles.astype(np.uint8)*255)
         cv2.imshow("imgRef", imgRef)
 
-        path2, _, _ = aStar.aStar(shell, unknowns, canWalk, (10, shell.shape[1]-1), verbose=True, distFunc=aStar.euclid, goalFunc=aStar.euclid)
+        path2, _, _, voro2 = aStar.aStar(shell, unknowns, canWalk, (10, shell.shape[1]-1), verbose=True, distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.manhattan)
 
         # fig = plt.figure(200)
         # imgplot = plt.imshow(walkable.astype(np.uint8)*int(255/3) + obstacles.astype(np.uint8)*int(255/3) + canWalk.astype(np.uint8)*int(255/3))
@@ -118,8 +118,8 @@ if __name__ == '__main__':
         imgplot2 = plt.imshow(np.rot90((walkMap*255/2 + path*255/2), 1))
         plt.figure(200)
         imgplot3 = plt.imshow(np.rot90((walkMap*255/2 + path2*255/2), 1))
-        # fig = plt.figure(300)
-        # imgplot3 = plt.imshow(distTo)
+        fig = plt.figure(300)
+        imgplot1 = plt.imshow(np.rot90(voro2, 1))
         plt.figure(400)
         imgplot4 = plt.imshow(np.rot90(obsDist, 1))
         plt.show()

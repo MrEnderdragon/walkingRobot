@@ -4,11 +4,31 @@ from queue import PriorityQueue
 import time
 
 
-def manhattan(coord1, coord2):
+def manhattan(coord1, coord2, arr=False):
+    """
+        :param coord1: first coordinate, or single goal coordinate
+        :param coord2: second coordinate, or array of coordinates
+        :param arr: is coord2 an array?
+    """
+    if arr:
+        deltas = np.abs(coord2 - np.array(coord1))
+        dists = np.einsum('ij->i', deltas)
+        return np.argmin(dists)
+
     return abs(coord2[0]-coord1[0]) + abs(coord2[1]-coord1[1])
 
 
-def euclid(coord1, coord2):
+def euclid(coord1, coord2, arr=False):
+    """
+        :param coord1: first coordinate, or single goal coordinate
+        :param coord2: second coordinate, or array of coordinates
+        :param arr: is coord2 an array?
+    """
+    if arr:
+        deltas = coord2 - np.array(coord1)
+        dist_2 = np.einsum('ij,ij->i', deltas, deltas)
+        return np.argmin(dist_2)
+
     return np.sqrt((coord2[0]-coord1[0])**2 + (coord2[1]-coord1[1])**2)
 
 
@@ -19,8 +39,8 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
         :param canWalk: field of view, or general places that can be walked (true means can walk)
         :param goal: (row, col) of goal point, relative to current position facing forwards
         :param verbose: print status?
-        :param args: 'robotWidth (mm), step (mm), distFunc, goalFunc, voroFunc, voroWeight'
-        :return: onPath, path, closestNode
+        :param args: 'robotWidth (mm), step (mm), distFunc, goalFunc, voroFunc, voroWeight, start'
+        :return: onPath, path, closestNode, obsDist
     """
 
     rows, cols = shell.shape
@@ -33,6 +53,8 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     voroFunc = args["voroFunc"] if "voroFunc" in args else manhattan
 
     voroWeight = args["voroWeight"] if "voroWeight" in args else 0.1
+
+    startCoords = args["start"] if "start" in args else (int(shell.shape[0]/2), 0)
 
     goal = (goal[0]+int(rows/2), goal[1])
 
@@ -54,19 +76,21 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     if verbose:
         print("voronoi start")
 
-    unwalkCoords = tuple(zip(*np.where(walkMap == 0)))
+    unwalkCoords = np.array(tuple(zip(*np.where(walkMap == 0))))
+    # print(unwalkCoords)
 
     for row in range(rows):
         for col in range(cols):
             # obsDist[row, col] = voroFunc(min(unwalkCoords, key=lambda co: voroFunc(co, (row, col))), (row, col))
-            index = np.argmin(np.sum(np.abs(np.array(unwalkCoords) - np.array([row, col])), axis=1))
-            obsDist[row, col] = voroFunc(unwalkCoords[index], (row, col))
+            # index = np.argmin(np.sum(np.abs(np.array(unwalkCoords) - np.array([row, col])), axis=1))
+            index = voroFunc((row, col), unwalkCoords, arr=True)
+            obsDist[row, col] = voroFunc((row, col), unwalkCoords[index])
 
     obsMax = np.max(obsDist)
 
     q = PriorityQueue()
-    q.put((0, (int(shell.shape[0]/2), 0)))
-    distTo[int(shell.shape[0]/2), 0] = 0
+    q.put((0, startCoords))
+    distTo[startCoords[0], startCoords[1]] = 0
 
     closestNode = (0, 0)
 
@@ -110,4 +134,4 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
         path.insert(0, cur)
         cur = nodeTo[cur[0], cur[1]]
 
-    return onPath, path, closestNode
+    return onPath, path, closestNode, obsDist
