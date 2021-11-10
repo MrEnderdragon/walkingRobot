@@ -13,6 +13,8 @@ subpixel = True
 # Better handling for occlusions:
 lr_check = True
 
+imgid = 'CAL-' + ('SP' if subpixel else '') + ('LR' if lr_check else '')
+
 focalLen = 441.25*31.35
 baseline = 7.5*10
 # focalLen = 2000
@@ -127,16 +129,16 @@ if __name__ == "__main__":
             cv2.imshow("color", frameCol)
 
             if cv2.waitKey() == ord('s'):
-                cv2.imwrite('./dispImages/disp' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frameDispCalc.astype(np.uint16))
-                cv2.imwrite('./depImages/depth' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frame.astype(np.uint16))
-                cv2.imwrite('./colImages/col' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frameCol)
-                cv2.imwrite('./LImages/L' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frameL)
-                cv2.imwrite('./RImages/R' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', frameR)
+                cv2.imwrite('./dispImages/disp' + imgid + '-' + str(counter) + '.png', frameDispCalc.astype(np.uint16))
+                cv2.imwrite('./depImages/depth' + imgid + '-' + str(counter) + '.png', frame.astype(np.uint16))
+                cv2.imwrite('./colImages/col' + imgid + '-' + str(counter) + '.png', frameCol)
+                cv2.imwrite('./LImages/L' + imgid + '-' + str(counter) + '.png', frameL)
+                cv2.imwrite('./RImages/R' + imgid + '-' + str(counter) + '.png', frameR)
 
-                vDisp, uDisp = UVdisp.uvDisp(frame)
+                vDisp, uDisp = UVdisp.uvDisp(frameDispCalc)
 
-                cv2.imwrite('./vDisp/vDisp' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', vDisp)
-                cv2.imwrite('./uDisp/uDisp' + ('SP' if subpixel else '') + ('LR' if lr_check else '') + '-' + str(counter) + '.png', uDisp)
+                cv2.imwrite('./vDisp/vDisp' + imgid + '-' + str(counter) + '.png', vDisp)
+                cv2.imwrite('./uDisp/uDisp' + imgid + '-' + str(counter) + '.png', uDisp)
 
                 counter += 1
 

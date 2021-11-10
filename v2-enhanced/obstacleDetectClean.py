@@ -2,20 +2,22 @@ import hough
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-print("mayavi load")
 import mayavi.mlab
 
-focalLen = 19.6 * 10  # mm
+# focalLen = 19.6 * 10  # mm
 focalLen = 441.25  # pixels
 ppmm = 1000/3  # pixels per mm, 1p = 3um
 baseline = 7.5 * 10  # mm
+minSee = focalLen * baseline / 95
 
-maxSize = 5000
-step = int(maxSize / 100)
+maxSize = 3000
+# step = int(maxSize / 100)
+step = 50
+objstep = step
 
 mid = [maxSize / 10, maxSize / 2, 0]
 
-thresh = (200/1000000)*(step**3)
+thresh = 35
 
 fig = plt.figure(300)
 ax = plt.axes()
@@ -63,10 +65,11 @@ def mapArr(xs, ys, depth):
     imgRows, imgCols = depth.shape
 
     zs = dep[xs, ys]
-    conv = np.divide(zs, np.sqrt(focalLen ** 2 + np.square(xs) + np.square(ys)))
 
-    xs = (xs - imgRows/2)
-    ys = (ys - imgCols/2)
+    xs = (xs - imgRows / 2)
+    ys = (ys - imgCols / 2)
+
+    conv = np.divide(zs, np.sqrt(focalLen ** 2 + np.square(xs) + np.square(ys)))
 
     return np.array([xs * conv, ys * conv, conv * focalLen])
 
@@ -84,12 +87,18 @@ def scale(coordsIn, midIn):
     return (coordsIn + midIn) / step
 
 
+def unscale(coordsIn, midIn):
+    coordss = coordsIn * step - midIn
+    coordss[..., 0] *= -1
+    return coordss
+
+
 def scaleOld(coordsIn, midIn):
     coordsIn[0] *= -1
     return np.add(coordsIn, midIn)
 
 
-def unscale(coordsIn, midIn):
+def unscaleOld(coordsIn, midIn):
     coordss = np.subtract(coordsIn, midIn)
     coordss[0] *= -1
     return coordss
@@ -104,7 +113,7 @@ def eq(in1, in2):
 
 if __name__ == "__main__":
 
-    for i in range(5, 10):
+    for i in range(0, 10):
         # Constructing test image
         imgId = "SPLR-" + str(i) + ".png"
         vDisp = cv2.imread("vDisp/vDisp" + imgId, cv2.IMREAD_UNCHANGED)
@@ -125,28 +134,37 @@ if __name__ == "__main__":
         floorGrid = np.zeros((int(maxSize/step)+1, int(maxSize/step)+1, int(maxSize/step)+1), dtype=np.uint8)
         colorGrid = np.zeros((int(maxSize/step)+1, int(maxSize/step)+1, int(maxSize/step)+1), dtype=np.uint32)
 
-        flatGrid = np.zeros((int(maxSize/step)+1, int(maxSize/step)+1, 3), dtype=np.uint8)
+        shellFlat = np.zeros((int(maxSize/step), int(maxSize/step)), dtype=np.bool_)
 
         depToUse = dep
 
         xsFloorLess, ysFloorLess = np.where(floor == 1)
         xsFloor, ysFloor = np.where(floor == 0)
 
-        mapFloorLess = scale(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, mid).astype(int)
+        mapFloorLess = scale(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, mid).astype(int)  # X, 3
         mapFloor = scale(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, mid).astype(int)
+
+        print((mapFloorLess > minSee))
+        print(np.all(mapFloorLess > 0, axis=1))
+
+        floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
+                                       np.all(mapFloor < maxSize / step, axis=1)
+                                       ], axis=0))
+
+        uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
+        floorheight = np.max(uniqueF[:, 0])
 
         floorLessCoords = np.where(np.all([np.all(mapFloorLess > 0, axis=1),
                                            np.all(mapFloorLess < maxSize / step, axis=1),
+                                           ((mapFloorLess > minSee / step)[:, 2]),
+                                           ((mapFloorLess > floorheight+(50/step))[:, 0]),
+                                           ((mapFloorLess < floorheight+(400/step))[:, 0])
                                            ], axis=0))
 
-        floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
-                                       np.all(mapFloor < maxSize / step, axis=1)], axis=0))
-
         uniqueFL, countsFL = np.unique(mapFloorLess[floorLessCoords], return_counts=True, axis=0)
-        uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)
 
         shellVox = uniqueFL[countsFL > thresh].T
-        floorVox = uniqueF[countsF > thresh].T
+        floorVox = uniqueF[countsF > 0].T
 
         # print(obs)
         cv2.imshow("floorless", cv2.applyColorMap(cv2.convertScaleAbs(depFloorless*10, alpha=(255.0/65535.0)), cv2.COLORMAP_JET))
@@ -155,80 +173,65 @@ if __name__ == "__main__":
         cv2.imshow("col", colour)
         cv2.imshow("vDisp", vDisp*10)
 
-        # ox, oy, oz = np.where(np.logical_and(shellGrid > 5, shellGrid < 10))
-        # sx, sy, sz = np.where(np.logical_and(shellGrid > 10, shellGrid < 30))
-        bx, by, bz = shellVox
+        shellx, shelly, shellz = shellVox
         colorGrid = np.divide(colorGrid, shellGrid)
-        cols = colorGrid[bx, by, bz].astype(np.uint8)
+        cols = colorGrid[shellx, shelly, shellz].astype(np.uint8)
         cx, cy, cz = floorVox
-        # print(cols)
-        print("cols", len(cols))
-        print("bx", len(bx))
-        print("cx", len(cx))
+
+        shellUnsc = unscale(shellVox.T, mid).T
+
+        xzRatSmall = shellUnsc[0]/shellUnsc[2]
+        xzRatBig = (shellUnsc[0]+step)/shellUnsc[2]
+        yzRatSmall = shellUnsc[1]/shellUnsc[2]
+        yzRatBig = (shellUnsc[1]+step)/shellUnsc[2]
+
+        testZs = np.tile(shellUnsc[2].reshape(-1, 1), reps=(1, int(maxSize/objstep)-1))+np.arange(1, int(maxSize/objstep)).reshape(1, -1)*objstep
+
+        xzStarts = (testZs*xzRatSmall.reshape(-1, 1))#.reshape(1, -1)
+        xzEnds = (testZs*xzRatBig.reshape(-1, 1))#.reshape(1, -1)
+        yzStarts = (testZs*yzRatSmall.reshape(-1, 1))#.reshape(1, -1)
+        yzEnds = (testZs*yzRatBig.reshape(-1, 1))#.reshape(1, -1)
+        zs = testZs.reshape(1, -1)
+
+        print(testZs.shape)
 
         objGrid = np.zeros((int(maxSize/step)+1, int(maxSize/step)+1, int(maxSize/step)+1), dtype=np.uint8)
+        obsFlat = np.zeros((int(maxSize/step), int(maxSize/step)), dtype=np.bool_)
 
-        for voxInd in range(len(bx)):
-
-            unscCoords = unscale([bx[voxInd] * step, by[voxInd] * step, bz[voxInd] * step], mid)
-
-            x = unscCoords[0]
-            y = unscCoords[1]
-            z = unscCoords[2]
-
-            if -10 < bx[voxInd] * step < 500:
-                flatGrid[by[voxInd], bz[voxInd]] = [0, 0, 255]
-
-            xzRatSmall = float(x)/z if z != 0 else 0
-            xzRatBig = float(x+1)/z if z != 0 else 0
-            yzRatSmall = float(y)/z if z != 0 else 0
-            yzRatBig = float(y+1)/z if z != 0 else 0
-
-            for zz in range(int(z)+1, maxSize, step):
+        rowss, colss = xzStarts.shape
+        for ind in range(rowss):
+            for zInd in range(colss):
+                print(ind, zInd)
                 cont = False
-                for xx in range(int(xzRatSmall * zz), int(xzRatBig * zz)+step, step):
-                    for yy in range(int(yzRatSmall * zz), int(yzRatBig * zz)+step, step):
-                        coords = scaleOld([xx, yy, zz], mid)
-                        if fits(0, maxSize, coords):
-                            objGrid[int(coords[0]/step), int(coords[1]/step), int(coords[2]/step)] += 1
-                            cont = True
-                            if -10 < coords[0] < 500 and eq(flatGrid[int(coords[1]/step), int(coords[2]/step)], [0, 0, 0]):
-                                flatGrid[int(coords[1]/step), int(coords[2]/step)] = [255, 0, 0]
-                if not cont:
-                    break
-
-        for voxInd in range(len(cx)):
-            unscCoords = unscale([cx[voxInd] * step, cy[voxInd] * step, cz[voxInd] * step], mid)
-
-            x = unscCoords[0]
-            y = unscCoords[1]
-            z = unscCoords[2]
-
-            if -10 < cx[voxInd] * step < 500 and eq(flatGrid[cy[voxInd], cz[voxInd]], [0, 0, 0]):
-                flatGrid[cy[voxInd], cz[voxInd]] = [0, 255, 0]
-
-            xzRatSmall = float(x) / z if z != 0 else 0
-            xzRatBig = float(x + 1) / z if z != 0 else 0
-            yzRatSmall = float(y) / z if z != 0 else 0
-            yzRatBig = float(y + 1) / z if z != 0 else 0
-
-            for zz in range(int(z) + 1, maxSize, step):
-                cont = False
-                for xx in range(int(xzRatSmall * zz), int(xzRatBig * zz)+step, step):
-                    for yy in range(int(yzRatSmall * zz), int(yzRatBig * zz)+step, step):
-                        coords = scaleOld([xx, yy, zz], mid)
+                for xx in range(xzStarts[ind, zInd].astype(int), xzEnds[ind, zInd].astype(int), step):
+                    for yy in range(yzStarts[ind, zInd].astype(int), yzEnds[ind, zInd].astype(int), step):
+                        coords = scaleOld([xx, yy, testZs[ind, zInd]], mid)
                         if fits(0, maxSize, coords):
                             objGrid[int(coords[0] / step), int(coords[1] / step), int(coords[2] / step)] += 1
                             cont = True
+                            if -10 < coords[0] < 500 and obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
+                                obsFlat[int(coords[1] / step), int(coords[2] / step)] = 1
                 if not cont:
                     break
-        #
+
+        shellFlat[shelly, shellz] = 1
+
+        walkFlat = np.zeros((int(maxSize/step), int(maxSize/step)), dtype=np.bool_)
+
+        xzRat = (dep.shape[1]/2) / focalLen
+
+        rows, cols = walkFlat.shape
+        for row in range(rows):
+            for col in range(cols):
+                if -xzRat*max(col, int(minSee/step)) + rows/2 < row < xzRat*max(col, int(minSee/step)) + rows/2:
+                    walkFlat[row, col] = 1
+
         ox, oy, oz = np.where(np.logical_and(floorGrid == 0, np.logical_and(objGrid > 0, shellGrid <= thresh)))
 
-        objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0.8, 0.9, 0.8), opacity=0.5)
+        objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0, 0, 0.9), opacity=0.5)
         # nodes2 = mayavi.mlab.points3d(sx, sy, sz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
-        shell = mayavi.mlab.points3d(-by, -bz, bx, mode="cube", scale_factor=0.8, color=(0, 0, 1))
-        floor = mayavi.mlab.points3d(-cy, -cz, cx, mode="cube", scale_factor=0.8, color=(1, 0, 0))
+        shell = mayavi.mlab.points3d(-shelly, -shellz, shellx, mode="cube", scale_factor=0.8, color=(1, 0, 0))
+        floor = mayavi.mlab.points3d(-cy, -cz, cx, mode="cube", scale_factor=0.8, color=(0, 1, 0))
         # mayavi.mlab.outline(color=(0, 0, 0))
 
         shell.glyph.scale_mode = 'scale_by_vector'
@@ -236,9 +239,15 @@ if __name__ == "__main__":
 
         # shell.mlab_source.dataset.point_data.scalars = cols
 
-        cv2.imshow("2d project", flatGrid)
+        cv2.imshow("2d project", (shellFlat + obsFlat).astype(np.uint8)*255)
+        cv2.imshow("2d projectt", (shellFlat).astype(np.uint8)*255)
+        cv2.imshow("2d projecttr", (walkFlat).astype(np.uint8)*255)
 
-        mayavi.mlab.show()
+        cv2.imwrite('./flatShell/shell' + str(imgId), shellFlat.astype(np.uint8))
+        cv2.imwrite('./flatUnknown/unknown' + str(imgId), obsFlat.astype(np.uint8))
+        cv2.imwrite('./flatCanWalk/canWalk' + str(imgId), walkFlat.astype(np.uint8))
+
+        # mayavi.mlab.show()
 
         # plt.show()
 
