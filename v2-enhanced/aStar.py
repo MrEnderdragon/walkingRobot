@@ -39,13 +39,13 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
         :param canWalk: field of view, or general places that can be walked (true means can walk)
         :param goal: (row, col) of goal point, relative to current position facing forwards
         :param verbose: print status?
-        :param args: 'robotWidth (mm), step (mm), distFunc, goalFunc, voroFunc, voroWeight, start'
+        :param args: 'robotWidth (mm), step (mm), distFunc, goalFunc, voroFunc, voroWeight, vorMax, start'
         :return: onPath, path, closestNode, obsDist
     """
 
     rows, cols = shell.shape
 
-    robotWidth = args["robotWidth"] if "robotWidth" in args else 112.6 + 100
+    robotWidth = args["robotWidth"] if "robotWidth" in args else 112.6
     step = args["step"] if "step" in args else 50
 
     distFunc = args["distFunc"] if "distFunc" in args else manhattan
@@ -53,6 +53,7 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     voroFunc = args["voroFunc"] if "voroFunc" in args else manhattan
 
     voroWeight = args["voroWeight"] if "voroWeight" in args else 0.1
+    voroMax = args["voroMax"] if "voroMax" in args else 400
 
     startCoords = args["start"] if "start" in args else (int(shell.shape[0]/2), 0)
 
@@ -64,7 +65,12 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     obstacles = cv2.dilate(unwalkable.astype(np.uint8), kernel, iterations=1).astype(np.bool_)
     canWalk = cv2.dilate(canWalk.astype(np.uint8), kernel, iterations=1)
 
+    # cv2.imshow("obs", obstacles.astype(np.uint8)*255)
+    # cv2.imshow("canWalk", canWalk.astype(np.uint8)*255)
+
     walkMap = canWalk - obstacles
+
+    # cv2.imshow("walkmap", walkMap.astype(np.uint8)*255)
 
     nodeTo = np.zeros((rows, cols, 2), np.uint32)-1
     distTo = np.zeros((rows, cols), np.float_)+np.inf
@@ -77,14 +83,11 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
         print("voronoi start")
 
     unwalkCoords = np.array(tuple(zip(*np.where(walkMap == 0))))
-    # print(unwalkCoords)
 
     for row in range(rows):
         for col in range(cols):
-            # obsDist[row, col] = voroFunc(min(unwalkCoords, key=lambda co: voroFunc(co, (row, col))), (row, col))
-            # index = np.argmin(np.sum(np.abs(np.array(unwalkCoords) - np.array([row, col])), axis=1))
             index = voroFunc((row, col), unwalkCoords, arr=True)
-            obsDist[row, col] = voroFunc((row, col), unwalkCoords[index])
+            obsDist[row, col] = min(voroFunc((row, col), unwalkCoords[index]), voroMax/step)
 
     obsMax = np.max(obsDist)
 
@@ -95,9 +98,9 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     closestNode = (0, 0)
 
     if verbose:
-        print("a* start")
         end = time.time()
         print(end-start)
+        print("a* start")
 
     while not q.empty():
         dist, coords = q.get()
@@ -134,4 +137,4 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
         path.insert(0, cur)
         cur = nodeTo[cur[0], cur[1]]
 
-    return onPath, path, closestNode, obsDist
+    return onPath, path, closestNode, obsDist, walkMap

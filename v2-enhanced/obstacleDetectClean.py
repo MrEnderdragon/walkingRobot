@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 import mayavi.mlab
+import time
 
 # focalLen = 19.6 * 10  # mm
 focalLen = 441.25  # pixels
@@ -121,7 +122,9 @@ if __name__ == "__main__":
         dep = cv2.imread("depImages/depth" + imgId, cv2.IMREAD_UNCHANGED)
         colour = cv2.imread("RImages/R" + imgId, cv2.IMREAD_COLOR)
 
-        vDisp = vDisp[0:350, ...]
+        start = time.time()
+
+        vDisp = vDisp[0:360, ...]
         disp = disp[0:360, ...]
         dep = dep[0:360, ...]
         colour = colour[0:360, ...]
@@ -144,8 +147,8 @@ if __name__ == "__main__":
         mapFloorLess = scale(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, mid).astype(int)  # X, 3
         mapFloor = scale(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, mid).astype(int)
 
-        print((mapFloorLess > minSee))
-        print(np.all(mapFloorLess > 0, axis=1))
+        # print((mapFloorLess > minSee))
+        # print(np.all(mapFloorLess > 0, axis=1))
 
         floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
                                        np.all(mapFloor < maxSize / step, axis=1)
@@ -187,30 +190,33 @@ if __name__ == "__main__":
 
         testZs = np.tile(shellUnsc[2].reshape(-1, 1), reps=(1, int(maxSize/objstep)-1))+np.arange(1, int(maxSize/objstep)).reshape(1, -1)*objstep
 
-        xzStarts = (testZs*xzRatSmall.reshape(-1, 1))#.reshape(1, -1)
-        xzEnds = (testZs*xzRatBig.reshape(-1, 1))#.reshape(1, -1)
-        yzStarts = (testZs*yzRatSmall.reshape(-1, 1))#.reshape(1, -1)
-        yzEnds = (testZs*yzRatBig.reshape(-1, 1))#.reshape(1, -1)
+        xzStarts = (testZs*xzRatSmall.reshape(-1, 1))
+        xzEnds = (testZs*xzRatBig.reshape(-1, 1))
+        yzStarts = (testZs*yzRatSmall.reshape(-1, 1))
+        yzEnds = (testZs*yzRatBig.reshape(-1, 1))
         zs = testZs.reshape(1, -1)
 
-        print(testZs.shape)
+        # print(testZs.shape)
 
         objGrid = np.zeros((int(maxSize/step)+1, int(maxSize/step)+1, int(maxSize/step)+1), dtype=np.uint8)
         obsFlat = np.zeros((int(maxSize/step), int(maxSize/step)), dtype=np.bool_)
 
+        print(floorheight)
+
         rowss, colss = xzStarts.shape
         for ind in range(rowss):
             for zInd in range(colss):
-                print(ind, zInd)
+                # print(ind, zInd)
                 cont = False
                 for xx in range(xzStarts[ind, zInd].astype(int), xzEnds[ind, zInd].astype(int), step):
                     for yy in range(yzStarts[ind, zInd].astype(int), yzEnds[ind, zInd].astype(int), step):
                         coords = scaleOld([xx, yy, testZs[ind, zInd]], mid)
                         if fits(0, maxSize, coords):
-                            objGrid[int(coords[0] / step), int(coords[1] / step), int(coords[2] / step)] += 1
                             cont = True
-                            if -10 < coords[0] < 500 and obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
-                                obsFlat[int(coords[1] / step), int(coords[2] / step)] = 1
+                            if floorheight+(50/step) < coords[0]/step < floorheight+(400/step):
+                                objGrid[int(coords[0] / step), int(coords[1] / step), int(coords[2] / step)] += 1
+                                if obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
+                                    obsFlat[int(coords[1] / step), int(coords[2] / step)] = 1
                 if not cont:
                     break
 
@@ -226,7 +232,10 @@ if __name__ == "__main__":
                 if -xzRat*max(col, int(minSee/step)) + rows/2 < row < xzRat*max(col, int(minSee/step)) + rows/2:
                     walkFlat[row, col] = 1
 
-        ox, oy, oz = np.where(np.logical_and(floorGrid == 0, np.logical_and(objGrid > 0, shellGrid <= thresh)))
+        end = time.time()
+        print(end - start)
+
+        ox, oy, oz = np.where(objGrid > 0)
 
         objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0, 0, 0.9), opacity=0.5)
         # nodes2 = mayavi.mlab.points3d(sx, sy, sz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
@@ -247,7 +256,7 @@ if __name__ == "__main__":
         cv2.imwrite('./flatUnknown/unknown' + str(imgId), obsFlat.astype(np.uint8))
         cv2.imwrite('./flatCanWalk/canWalk' + str(imgId), walkFlat.astype(np.uint8))
 
-        # mayavi.mlab.show()
+        mayavi.mlab.show()
 
         # plt.show()
 
