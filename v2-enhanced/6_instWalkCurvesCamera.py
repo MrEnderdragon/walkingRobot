@@ -574,17 +574,17 @@ if __name__ == "__main__":
 
             curTime = time.time()
 
-            f = open("latestTime.txt", "w")
+            f = open("/images/latestTime.txt", "w")
             f.write(str(curTime))
             f.close()
 
-            cv2.imwrite("images/onpath" + str(curTime) + ".png", onPath * 255)
-            cv2.imwrite("images/curvePath" + str(curTime) + ".png", curvedpath * 255)
-            cv2.imwrite("images/voro" + str(curTime) + ".png", voro * 50)
-            cv2.imwrite("images/walkMap" + str(curTime) + ".png", walkmap * 255)
+            cv2.imwrite("images/onpath-" + str(curTime) + ".png", onPath * 255)
+            cv2.imwrite("images/curvePath-" + str(curTime) + ".png", curvedpath * 255)
+            cv2.imwrite("images/voro-" + str(curTime) + ".png", voro * 50)
+            cv2.imwrite("images/walkMap-" + str(curTime) + ".png", walkmap * 255)
             depCol = cv2.applyColorMap(cv2.convertScaleAbs(frameDep * 10, alpha=(255.0 / 65535.0)), cv2.COLORMAP_JET)
-            cv2.imwrite("images/depth" + str(curTime) + ".png", depCol)
-            cv2.imwrite("images/dispCalc" + str(curTime) + ".png",
+            cv2.imwrite("images/depth-" + str(curTime) + ".png", depCol)
+            cv2.imwrite("images/dispCalc-" + str(curTime) + ".png",
                         cv2.applyColorMap(cv2.convertScaleAbs(dispCalc * 10, alpha=(255.0 / 65535.0)), cv2.COLORMAP_JET))
 
             mainLoop()
