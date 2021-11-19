@@ -26,7 +26,7 @@ def mapArr(xs, ys, depth):
     xs = (xs - imgRows / 2)
     ys = (ys - imgCols / 2)
 
-    conv = np.divide(zs, np.sqrt(focalLen ** 2 + np.square(xs) + np.square(ys)))
+    conv = np.divide(zs, focalLen)
 
     return np.array([xs * conv, ys * conv, conv * focalLen])
 

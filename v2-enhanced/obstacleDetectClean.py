@@ -42,7 +42,7 @@ def mapPoints(inX, inY, depth):
     # xx = x_over_z * zz
     # yy = y_over_z * zz
 
-    conv = depth / np.sqrt(focalLen**2 + inX ** 2 + inY ** 2)
+    conv = depth / focalLen  # np.sqrt(focalLen**2 + inX ** 2 + inY ** 2)
 
     return [inX*conv, inY*conv, focalLen*conv]
 
@@ -70,7 +70,7 @@ def mapArr(xs, ys, depth):
     xs = (xs - imgRows / 2)
     ys = (ys - imgCols / 2)
 
-    conv = np.divide(zs, np.sqrt(focalLen ** 2 + np.square(xs) + np.square(ys)))
+    conv = np.divide(zs, focalLen)  # np.sqrt(focalLen ** 2 + np.square(xs) + np.square(ys)))
 
     return np.array([xs * conv, ys * conv, conv * focalLen])
 
@@ -160,8 +160,8 @@ if __name__ == "__main__":
         floorLessCoords = np.where(np.all([np.all(mapFloorLess > 0, axis=1),
                                            np.all(mapFloorLess < maxSize / step, axis=1),
                                            ((mapFloorLess > minSee / step)[:, 2]),
-                                           ((mapFloorLess > floorheight+(50/step))[:, 0]),
-                                           ((mapFloorLess < floorheight+(400/step))[:, 0])
+                                           ((mapFloorLess > floorheight+(0/step))[:, 0]),
+                                           ((mapFloorLess < floorheight+(4000/step))[:, 0])
                                            ], axis=0))
 
         uniqueFL, countsFL = np.unique(mapFloorLess[floorLessCoords], return_counts=True, axis=0)

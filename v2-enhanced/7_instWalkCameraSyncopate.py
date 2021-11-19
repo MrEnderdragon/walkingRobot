@@ -217,7 +217,7 @@ def mainLoop():
     # for i in range(0, len(dPoints), 2):
     #     print("(" + str(dPoints[i][0]) + "," + str(dPoints[i][1]) + ")")
 
-    for posInd in range(0, min(int(len(dPoints)*2/3), int(150000/driveAcc)), 2):
+    for posInd in range(0, min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
         # print(i)
 
         bodyX = dPoints[posInd][0]
@@ -234,55 +234,44 @@ def mainLoop():
 
         foundPos = None
 
+        # TODO: if you are moving and not the current refleg
+        # TODO: check amtill of your next step, if you'd suddenly become the refleg
+        # TODO: check amtill of next refleg step, if nothing happened and refleg stayed as refleg
+        # TODO: choose the smaller one, set as refleg
+        # TODO: if refleg doesn't change, don't do anything
+
         for curLeg in range(0, 4):
             if moveCountdown[curLeg] == 0:
                 foundPos = findNext(dPoints, bodyCorners[curLeg], bodyAng, curLeg)
                 legMoved = curLeg
+
+                if curLeg == 0 and refLeg != 0:
+                    # see what is amtill if you suddently become the ref leg
+                    amTill0 = 0
+                    found0 = False
+                    findFlag0 = False
+                    for posIndNext in range(0, len(dPoints), 2):
+
+                        tmpPosInd = (posIndNext + posInd) % len(dPoints)
+
+                        findBodyX = dPoints[tmpPosInd][0]
+                        findBodyY = dPoints[tmpPosInd][1]
+                        findBodyAng = dPoints[tmpPosInd + 1]
+
+                        refCorner = locToGlob(cornerPoint[refLeg], [findBodyX, findBodyY], findBodyAng)
+                        findDist = dist(foundPos, refCorner)
+
+                        if (not findFlag0) and findDist < inDist and findDist < outDist:
+                            findFlag0 = True
+
+                        if findDist > (inDist if refLeg <= 1 else outDist) and findFlag0:
+                            found0 = True
+                            break
+
+                        amTill0 += 1
+
             if moveCountdown[curLeg] >= 0:
                 moveCountdown[curLeg] -= 1
-
-        tmpDist = dist(legPos[refLeg], bodyCorners[refLeg])
-
-        if (not refFlag) and tmpDist < inDist and tmpDist < outDist:
-            refFlag = True
-
-        if tmpDist > (inDist if refLeg <= 1 else outDist) and refFlag:  # test if reference leg is outside of its maximum range
-            print("out of range")
-            foundPos = findNext(dPoints, bodyCorners[refLeg], bodyAng, refLeg)
-
-            amTill = 0
-            found = False
-            refFlag = False
-
-            findFlag = False
-
-            # search for next step of reference leg, and count amount
-            for posIndNext in range(0, len(dPoints), 2):
-
-                tmpPosInd = (posIndNext + posInd) % len(dPoints)
-
-                findBodyX = dPoints[tmpPosInd][0]
-                findBodyY = dPoints[tmpPosInd][1]
-                findBodyAng = dPoints[tmpPosInd + 1]
-
-                refCorner = locToGlob(cornerPoint[refLeg], [findBodyX, findBodyY], findBodyAng)
-                findDist = dist(foundPos, refCorner)
-
-                if (not findFlag) and findDist < inDist and findDist < outDist:
-                    findFlag = True
-
-                if findDist > (inDist if refLeg <= 1 else outDist) and findFlag:
-                    found = True
-                    break
-
-                amTill += 1
-
-            if found:
-                for moveTimerLeg in range(0, 4):
-                    moveCountdown[order[moveTimerLeg]] = int(amTill * moveTimerLeg / 4)
-                moveCountdown[refLeg] = -1
-
-            legMoved = refLeg
 
         relLegPos = [[], [], [], []]
 
@@ -301,12 +290,8 @@ def mainLoop():
 
             time.sleep(timePerCycle)
 
-        if legMoved != -1:  # a leg has reached its maximum, move it
-            # print("leg moved: " + str(legMoved))
-            # print("timers: " + str(moveCountdown))
-            # print("poss: " + str(lastFoundP))
-            # print("")
-            print(int(bodyX), int(bodyY), int(bodyAng))
+        if legMoved != -1:  # a leg has reached its time, move it
+
             lastMoved = True
             for leg in range(4):  # move back and tilt
                 if leg == legMoved:
@@ -325,7 +310,6 @@ def mainLoop():
 
             for leg in range(4):  # stay and move lifting leg forwards
                 if leg == legMoved:
-
                     cornerCoords = bodyCorners[legMoved]
 
                     # update relLegPos with forward pos
