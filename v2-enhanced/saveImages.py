@@ -91,7 +91,7 @@ if __name__ == "__main__":
         controlQueue = device.getInputQueue('control')
 
         its = 0
-        counter = 0
+        counter = 15
 
         while True:
 
@@ -124,9 +124,11 @@ if __name__ == "__main__":
 
             # Available color maps: https://docs.opencv.org/3.4/d3/d50/group__imgproc__colormap.html
             frameDep = cv2.applyColorMap(frameDep, cv2.COLORMAP_TWILIGHT)
+            vDisp, uDisp = UVdisp.uvDisp(frameDispCalc.astype(np.uint16))
             cv2.imshow("depth", frameDep)
             cv2.imshow("dispCalc", cv2.applyColorMap(cv2.convertScaleAbs(frameDispCalc*10, alpha=(255.0/65535.0)), cv2.COLORMAP_TWILIGHT))
             cv2.imshow("color", frameCol)
+            cv2.imshow("v", vDisp*10)
 
             if cv2.waitKey() == ord('s'):
                 cv2.imwrite('./dispImages/disp' + imgid + '-' + str(counter) + '.png', frameDispCalc.astype(np.uint16))
@@ -134,9 +136,6 @@ if __name__ == "__main__":
                 cv2.imwrite('./colImages/col' + imgid + '-' + str(counter) + '.png', frameCol)
                 cv2.imwrite('./LImages/L' + imgid + '-' + str(counter) + '.png', frameL)
                 cv2.imwrite('./RImages/R' + imgid + '-' + str(counter) + '.png', frameR)
-
-                vDisp, uDisp = UVdisp.uvDisp(frameDispCalc)
-
                 cv2.imwrite('./vDisp/vDisp' + imgid + '-' + str(counter) + '.png', vDisp)
                 cv2.imwrite('./uDisp/uDisp' + imgid + '-' + str(counter) + '.png', uDisp)
 

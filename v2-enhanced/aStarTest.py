@@ -18,9 +18,9 @@ def euclid(coord1, coord2):
 
 
 if __name__ == '__main__':
-    for i in range(0, 10):
+    for i in range(15, 17):
         # Constructing test image
-        imgId = "SPLR-" + str(i) + ".png"
+        imgId = "CAL-SPLR-" + str(i) + ".png"
         shell = cv2.imread("flatShell/shell" + imgId, cv2.IMREAD_UNCHANGED)
         unknowns = cv2.imread("flatUnknown/unknown" + imgId, cv2.IMREAD_UNCHANGED)
         canWalk = cv2.imread("flatCanWalk/canWalk" + imgId, cv2.IMREAD_UNCHANGED)
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         kernel = np.ones((1+int(robotWidth/step), 1+int(robotWidth/step)), np.uint8)
         obstacles = cv2.dilate(walkable.astype(np.uint8), kernel, iterations=1).astype(np.bool_)
 
-        canWalk = cv2.dilate(canWalk.astype(np.uint8), kernel, iterations=1)
+        # canWalk = cv2.dilate(canWalk.astype(np.uint8), kernel, iterations=1)
 
         walkMap = canWalk-obstacles
 
@@ -110,16 +110,23 @@ if __name__ == '__main__':
         # cv2.imshow("ttt", obstacles.astype(np.uint8)*255)
         cv2.imshow("imgRef", imgRef)
 
-        path2, _, _, voro2 = aStar.aStar(shell, unknowns, canWalk, (10, shell.shape[1]-1), verbose=True, distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.manhattan)
+        path2, _, _, voro2, walkMap = aStar.aStar(shell, unknowns, canWalk, (0, shell.shape[1]-1), verbose=True, distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.manhattan, robotWidth=robotWidth)
+
+        walkMap[goal[0], goal[1]] = 1
+        path[goal[0], goal[1]] = 1
+
+        cv2.imwrite("./aStar/dialate" + imgId, (walkMap*255).astype(np.uint8))
+        cv2.imwrite("./aStar/voro" + imgId, (voro2*10).astype(np.uint8))
+        cv2.imwrite("./aStar/path" + imgId, (path2*255).astype(np.uint8))
 
         # fig = plt.figure(200)
         # imgplot = plt.imshow(walkable.astype(np.uint8)*int(255/3) + obstacles.astype(np.uint8)*int(255/3) + canWalk.astype(np.uint8)*int(255/3))
-        plt.figure(100)
-        imgplot2 = plt.imshow(np.rot90((walkMap*255/2 + path*255/2), 1))
+        # plt.figure(100)
+        # imgplot2 = plt.imshow(np.rot90((walkMap*255/2 + path*255/2), 1))
         plt.figure(200)
         imgplot3 = plt.imshow(np.rot90((walkMap*255/2 + path2*255/2), 1))
         fig = plt.figure(300)
         imgplot1 = plt.imshow(np.rot90(voro2, 1))
-        plt.figure(400)
-        imgplot4 = plt.imshow(np.rot90(obsDist, 1))
+        # plt.figure(400)
+        # imgplot4 = plt.imshow(np.rot90(obsDist, 1))
         plt.show()

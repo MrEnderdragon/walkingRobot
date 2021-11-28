@@ -10,12 +10,15 @@ from matplotlib import cm
 
 if __name__ == "__main__":
 
-    for i in range(10):
+    for i in range(15, 17):
         # Constructing test image
-        imgId = "SPLR-" + str(i) + ".png"
-        image = cv2.imread("vDisp/v" + imgId, cv2.IMREAD_UNCHANGED)
+        imgId = "CAL-SPLR-" + str(i) + ".png"
+        image = cv2.imread("vDisp/vDisp" + imgId, cv2.IMREAD_UNCHANGED)
         disp = cv2.imread("dispImages/disp" + imgId, cv2.IMREAD_UNCHANGED)
         disp = cv2.convertScaleAbs(disp*10, alpha=(255.0/65535.0))
+
+        image = image[0:360, ...]
+        disp = disp[0:360, ...]
 
         # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         # image = cv2.dilate(image, kernel, iterations=1)

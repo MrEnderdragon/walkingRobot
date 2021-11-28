@@ -63,7 +63,7 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
 
     kernel = np.ones((1 + int(robotWidth / step), 1 + int(robotWidth / step)), np.uint8)
     obstacles = cv2.dilate(unwalkable.astype(np.uint8), kernel, iterations=1).astype(np.bool_)
-    canWalk = cv2.dilate(canWalk.astype(np.uint8), kernel, iterations=1)
+    # canWalk = cv2.dilate(canWalk.astype(np.uint8), kernel, iterations=1)
 
     # cv2.imshow("obs", obstacles.astype(np.uint8)*255)
     # cv2.imshow("canWalk", canWalk.astype(np.uint8)*255)

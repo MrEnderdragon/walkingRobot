@@ -114,9 +114,9 @@ def eq(in1, in2):
 
 if __name__ == "__main__":
 
-    for i in range(0, 10):
+    for i in range(15, 17+1):
         # Constructing test image
-        imgId = "SPLR-" + str(i) + ".png"
+        imgId = "CAL-SPLR-" + str(i) + ".png"
         vDisp = cv2.imread("vDisp/vDisp" + imgId, cv2.IMREAD_UNCHANGED)
         disp = cv2.imread("dispImages/disp" + imgId, cv2.IMREAD_UNCHANGED)
         dep = cv2.imread("depImages/depth" + imgId, cv2.IMREAD_UNCHANGED)
@@ -124,12 +124,13 @@ if __name__ == "__main__":
 
         start = time.time()
 
+        _, dispSLIC, dispScaled, floor = hough.hough(disp, vDisp, slicc=False, slicRef=colour, verbose=True, m=100, k=500, scl=1.5, its=5)
+
         vDisp = vDisp[0:360, ...]
         disp = disp[0:360, ...]
         dep = dep[0:360, ...]
         colour = colour[0:360, ...]
-
-        _, dispSLIC, dispScaled, floor = hough.hough(disp, vDisp, slicc=False, slicRef=colour, verbose=True, m=100, k=500, scl=1.5, its=5)
+        floor = floor[0:360, ...]
 
         depFloorless = dep * floor
 
@@ -171,7 +172,7 @@ if __name__ == "__main__":
 
         # print(obs)
         cv2.imshow("floorless", cv2.applyColorMap(cv2.convertScaleAbs(depFloorless*10, alpha=(255.0/65535.0)), cv2.COLORMAP_JET))
-        cv2.imshow("slic", cv2.applyColorMap(cv2.convertScaleAbs(dispSLIC*10, alpha=(255.0/65535.0)), cv2.COLORMAP_JET))
+        cv2.imshow("slic", cv2.applyColorMap(cv2.convertScaleAbs(dispSLIC*20, alpha=(255.0/65535.0)), cv2.COLORMAP_JET))
         cv2.imshow("floor", floor*255)
         cv2.imshow("col", colour)
         cv2.imshow("vDisp", vDisp*10)
@@ -213,7 +214,8 @@ if __name__ == "__main__":
                         coords = scaleOld([xx, yy, testZs[ind, zInd]], mid)
                         if fits(0, maxSize, coords):
                             cont = True
-                            if floorheight+(50/step) < coords[0]/step < floorheight+(400/step):
+                            # if floorheight+(50/step) < coords[0]/step < floorheight+(400/step):
+                            if True:
                                 objGrid[int(coords[0] / step), int(coords[1] / step), int(coords[2] / step)] += 1
                                 if obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
                                     obsFlat[int(coords[1] / step), int(coords[2] / step)] = 1
@@ -237,7 +239,8 @@ if __name__ == "__main__":
 
         ox, oy, oz = np.where(objGrid > 0)
 
-        objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0, 0, 0.9), opacity=0.5)
+        objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0, 0, 0.6), opacity=1)
+        # objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0, 0, 0.9))
         # nodes2 = mayavi.mlab.points3d(sx, sy, sz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
         shell = mayavi.mlab.points3d(-shelly, -shellz, shellx, mode="cube", scale_factor=0.8, color=(1, 0, 0))
         floor = mayavi.mlab.points3d(-cy, -cz, cx, mode="cube", scale_factor=0.8, color=(0, 1, 0))
@@ -255,6 +258,10 @@ if __name__ == "__main__":
         cv2.imwrite('./flatShell/shell' + str(imgId), shellFlat.astype(np.uint8))
         cv2.imwrite('./flatUnknown/unknown' + str(imgId), obsFlat.astype(np.uint8))
         cv2.imwrite('./flatCanWalk/canWalk' + str(imgId), walkFlat.astype(np.uint8))
+
+        cv2.imwrite('./flatShell/shell255' + str(imgId), (shellFlat*255).astype(np.uint8))
+        cv2.imwrite('./flatUnknown/unknown255' + str(imgId), (obsFlat*255).astype(np.uint8))
+        cv2.imwrite('./flatCanWalk/canWalk255' + str(imgId), (walkFlat*255).astype(np.uint8))
 
         mayavi.mlab.show()
 

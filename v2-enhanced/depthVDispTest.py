@@ -12,8 +12,8 @@ if __name__ == '__main__':
     height = 400
     width = 640
     max_disp = 200
-    for i in range(10):
-        img = cv2.imread("dispImages/dispSPLR-" + str(i) + ".png", cv2.IMREAD_UNCHANGED)
+    for i in range(4,14+1):
+        img = cv2.imread("dispImages/dispCAL-SPLR-" + str(i) + ".png", cv2.IMREAD_UNCHANGED)
 
         img = cv2.convertScaleAbs(img*10, alpha=(255.0/65535.0))
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
         cv2.imshow('u_disparity.png', uhist_vis)
         cv2.imshow('mask.png', mask)
 
-        cv2.imwrite('./vDisp/vDispSPLR-' + str(i) + '.png', vhist_vis)
-        cv2.imwrite('./uDisp/uDispSPLR-' + str(i) + '.png', uhist_vis)
+        # cv2.imwrite('./vDisp/vDispSPLR-' + str(i) + '.png', vhist_vis)
+        # cv2.imwrite('./uDisp/uDispSPLR-' + str(i) + '.png', uhist_vis)
 
         cv2.waitKey()
