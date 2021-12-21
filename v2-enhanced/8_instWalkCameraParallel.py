@@ -2,7 +2,7 @@ runRobot = False
 
 import math
 import time
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, Value
 if runRobot:
     from pyax12.connection import Connection
     import regMove
@@ -14,6 +14,7 @@ import cv2
 import UVdisp
 import obstacleDetect
 import aStar
+import cameraProcess
 PI = 3.1415
 
 # AX-12A motor connection
@@ -627,116 +628,6 @@ def globToLoc(glob_p, orig_p, orig_rot, flipY=0, zHeight=0):
     return [cosAm * rel_x - sinAm * rel_y, (sinAm * rel_x + cosAm * rel_y) * ((-1) ** flipY), zHeight]
 
 
-def takeImage(q):
-    with dai.Device(pipeline) as device:
-        # Output queue will be used to get the disparity frames from the outputs defined above
-        depQ = device.getOutputQueue(name="depOut", maxSize=4, blocking=False)
-        rQ = device.getOutputQueue(name="outR", maxSize=4, blocking=False)
-
-        while True:
-            try:
-                inDisp = depQ.get()  # blocking call, will wait until a new data has arrived
-                inR = rQ.get()
-
-                frameDep = inDisp.getFrame()
-                frameR = inR.getCvFrame()
-
-                curTime = int(time.time())
-                f = open("images/latestTime.txt", "w")
-                f.write(str(curTime))
-                f.close()
-
-                depCol = cv2.applyColorMap(cv2.convertScaleAbs(frameDep * 10, alpha=(255.0 / 65535.0)),
-                                           cv2.COLORMAP_JET)
-                cv2.imwrite("images/depth-" + str(curTime) + ".png", depCol)
-                cv2.imwrite("images/col-" + str(curTime) + ".png", frameR)
-
-                dispCalc = np.divide(focalLen*baseline, frameDep)
-
-                cv2.imwrite("images/dispCalc-" + str(curTime) + ".png",
-                            cv2.applyColorMap(cv2.convertScaleAbs(dispCalc * 10, alpha=(255.0 / 65535.0)), cv2.COLORMAP_JET))
-
-                vDisp, uDisp = UVdisp.uvDisp(dispCalc)
-                shellFlat, unknFlat, walkFlat = obstacleDetect.detect(vDisp, dispCalc, frameDep, verbose=True)
-
-                onPath, path, closestNode, voro, walkmap = \
-                    aStar.aStar(shellFlat, unknFlat, walkFlat, (0, shellFlat.shape[1] - 1), verbose=True,
-                                distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=width/2+lineDist)
-
-                print("a* done")
-
-                lastlast = None
-                last = None
-
-                points = [path[0]]
-                curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
-
-                for ind, cur in enumerate(path):
-                    curX = cur[1]*50
-                    curY = -(cur[0]-shellFlat.shape[0]/2)*50
-                    if lastlast is not None and last is not None:
-                        if last[0] != (curX+lastlast[0])/2 or last[1] != (curY+lastlast[1])/2:
-                            points.append(last)
-
-                    lastlast = last
-                    last = (curX, curY)
-
-                print("points mapping done")
-
-                newCurves = []
-
-                if len(points) > 2:
-                    enddX = (points[0][0] + points[1][0])/2
-                    enddY = (points[0][1] + points[1][1])/2
-                    curv = curves.quadBezier(points[0], ((enddX+points[0][0])/2, (enddY+points[0][1])/2), (enddX, enddY))
-                    newCurves.append(curv)
-                    for i in curv.renderPoints():
-                        curvedpath[int(shellFlat.shape[0]/2-i[1]/50), int(i[0]/50)] = 1
-
-                    for ind in range(1, len(points)-1):
-                        sttX = (points[ind-1][0] + points[ind][0])/2
-                        sttY = (points[ind-1][1] + points[ind][1])/2
-                        enddX = (points[ind+1][0] + points[ind][0])/2
-                        enddY = (points[ind+1][1] + points[ind][1])/2
-                        curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
-                        for i in curv.renderPoints():
-                            curvedpath[int(shellFlat.shape[0]/2-i[1]/50), int(i[0]/50)] = 1
-                        newCurves.append(curv)
-
-                    sttX = (points[len(points)-2][0] + points[len(points)-1][0]) / 2
-                    sttY = (points[len(points)-2][1] + points[len(points)-1][1]) / 2
-                    curv = curves.quadBezier((sttX, sttY), ((sttX + points[len(points)-1][0]) / 2, (sttY + points[len(points)-1][1]) / 2),
-                                             points[len(points)-1])
-                    newCurves.append(curv)
-
-                    for i in curv.renderPoints():
-                        curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50)] = 1
-
-                elif len(points) > 1:
-                    curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
-                                                         (points[1][1] + points[0][1]) / 2), points[1])
-                    newCurves.append(curv)
-                    for i in curv.renderPoints():
-                        curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50)] = 1
-                else:
-                    pass
-                    # break
-
-                print("curve points done")
-
-                cv2.imwrite("images/onpath-" + str(curTime) + ".png", onPath * 255)
-                cv2.imwrite("images/curvePath-" + str(curTime) + ".png", curvedpath * 255)
-                cv2.imwrite("images/voro-" + str(curTime) + ".png", voro * 50)
-                cv2.imwrite("images/walkMap-" + str(curTime) + ".png", walkmap * 255)
-
-                q.put(newCurves)
-
-            except ValueError:
-                print("ERRORED")
-
-            time.sleep(camSleepTime)
-
-
 # program start
 if __name__ == "__main__":
 
@@ -744,7 +635,10 @@ if __name__ == "__main__":
 
     mainLoop(qu)
 
-    p = Process(target=takeImage, args=(qu,), daemon=True)
+    p = Process(target=cameraProcess.takeImage, args=(qu, pipeline, camSleepTime, Value('i', False)),
+                kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
+                daemon=True)
+
     p.start()
 
     while True:
