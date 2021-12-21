@@ -46,6 +46,9 @@ def SLIC(image, k, m, its):
 
         print("slic it" + str(itt+1) + " starting")
 
+        pixLab = np.ones((image.shape[0], image.shape[1]), dtype=np.uint8) * -1
+        pixDist = np.ones((image.shape[0], image.shape[1]), dtype=np.float_) * np.inf
+
         for ind in range(len(c)):
             cc = c[ind]
             tmpRow = cc[0]

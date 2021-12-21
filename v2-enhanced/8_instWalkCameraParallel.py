@@ -2,6 +2,7 @@ runRobot = False
 
 import math
 import time
+from multiprocessing import Process, Queue
 if runRobot:
     from pyax12.connection import Connection
     import regMove
@@ -57,12 +58,7 @@ order = [0, 3, 1, 2]  # order to take steps
 # program variables V V V
 opposites = [3, 2, 1, 0]  # opposites of every leg
 
-# empty array to store instructions (old)
-moves = [
-    [] for it in opposites
-]
-
-# initial starting coordinates (old)
+# initial starting coordinates
 coords = [
     [outX, lineDist, -walkHeight],
     [outX, lineDist, -walkHeight],
@@ -98,14 +94,14 @@ driveAcc = 10  # accuracy of driving for curves (mm)
 # radius = 70 * 10
 # driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0)), curves.quadBezier((radius, 0), (radius+radius, 0), (radius+radius, -radius))]
 
-radius = 300 * 10
-driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0))]
-# driveCurves = []
+# radius = 300 * 10
+# driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0))]
+driveCurves = []
 
 legPos = [[height / 2 - inX, width / 2 + lineDist],
           [height / 2 + outX - (outX + inX) * 1 / 3, -width / 2 - lineDist],
           [-height / 2 + inX, width / 2 + lineDist],
-          [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]]  # initial positions of legs
+          [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]]  # initial positions of legs (global)
 
 refLeg = order[0]
 refFlag = True
@@ -121,10 +117,7 @@ moveCountdown = [-1, -1, -1, -1]
 
 lastFoundP = [0, 0, 0, 0]
 
-lastRelPos = [[height / 2 - inX, width / 2 + lineDist],
-              [height / 2 + outX - (outX + inX) * 1 / 3, -width / 2 - lineDist],
-              [-height / 2 + inX, width / 2 + lineDist],
-              [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]]
+lastRelPos = legPos.copy()
 
 # Closer-in minimum depth, disparity range is doubled (from 95 to 190):
 extended_disparity = False  # doesn't work
@@ -136,42 +129,45 @@ lr_check = True
 focalLen = 441.25*31.35
 baseline = 7.5*10
 
-# # Create pipeline
-# pipeline = dai.Pipeline()
-#
-# # Define sources and outputs
-# monoLeft = pipeline.createMonoCamera()
-# monoRight = pipeline.createMonoCamera()
-#
-# depth = pipeline.createStereoDepth()
-#
-# outDisp = pipeline.createXLinkOut()
-# outDisp.setStreamName("depOut")
-#
-# outR = pipeline.createXLinkOut()
-# outR.setStreamName("outR")
-#
-# # Properties
-# monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-# monoLeft.setBoardSocket(dai.CameraBoardSocket.LEFT)
-# monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-# monoRight.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-#
-# # Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
-# depth.initialConfig.setConfidenceThreshold(200)
-# # Options: MEDIAN_OFF, KERNEL_3x3, KERNEL_5x5, KERNEL_7x7 (default)
-# depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
-# depth.setLeftRightCheck(subpixel)
-# depth.setExtendedDisparity(extended_disparity)
-# depth.setSubpixel(lr_check)
-#
-# # Linking
-# monoLeft.out.link(depth.left)
-# monoRight.out.link(depth.right)
-#
-# monoRight.out.link(outR.input)
-#
-# depth.depth.link(outDisp.input)
+camSleepTime = 5
+waitTime = 2
+
+# Create pipeline
+pipeline = dai.Pipeline()
+
+# Define sources and outputs
+monoLeft = pipeline.createMonoCamera()
+monoRight = pipeline.createMonoCamera()
+
+depth = pipeline.createStereoDepth()
+
+outDisp = pipeline.createXLinkOut()
+outDisp.setStreamName("depOut")
+
+outR = pipeline.createXLinkOut()
+outR.setStreamName("outR")
+
+# Properties
+monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+monoLeft.setBoardSocket(dai.CameraBoardSocket.LEFT)
+monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+monoRight.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+
+# Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
+depth.initialConfig.setConfidenceThreshold(200)
+# Options: MEDIAN_OFF, KERNEL_3x3, KERNEL_5x5, KERNEL_7x7 (default)
+depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
+depth.setLeftRightCheck(subpixel)
+depth.setExtendedDisparity(extended_disparity)
+depth.setSubpixel(lr_check)
+
+# Linking
+monoLeft.out.link(depth.left)
+monoRight.out.link(depth.right)
+
+monoRight.out.link(outR.input)
+
+depth.depth.link(outDisp.input)
 
 
 # Instruction types
@@ -203,11 +199,19 @@ class inst:
 
 
 # Main loop
-def mainLoop():
+def mainLoop(q):
     global lastMoved, cornerPoint, refFlag, lastFoundP, lastRelPos, refLeg
 
-    for i in range(len(coords)):
-        moveLegs(calcRots(coords[i], i), i)
+    # for i in range(len(coords)):
+    #     moveLegs(calcRots(coords[i], i), i)
+
+    bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
+
+    for ind in range(4):
+        bodyCorners[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
+
+    for i in range(len(legPos)):
+        moveLegs(calcRots(globToLoc(legPos[i], bodyCorners[i], 0, i, -walkHeight), i), i)
 
     time.sleep(stdDelay)
     if runRobot:
@@ -215,13 +219,10 @@ def mainLoop():
 
     dPoints = generate()
 
-    print("am points: " + str(len(dPoints)))
-
-    # for i in range(0, len(dPoints), 2):
-    #     print("(" + str(dPoints[i][0]) + "," + str(dPoints[i][1]) + ")")
-
     for posInd in range(0, len(dPoints)-50, 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
-        # print(i)
+
+        if not q.empty():
+            break
 
         bodyX = dPoints[posInd][0]
         bodyY = dPoints[posInd][1]
@@ -237,11 +238,11 @@ def mainLoop():
 
         foundPos = None
 
-        # TODO: if you are moving and not the current refleg
-        # TODO: check amtill of your next step, if you'd suddenly become the refleg
-        # TODO: check amtill of next refleg step, if nothing happened and refleg stayed as refleg
-        # TODO: choose the smaller one, set as refleg
-        # TODO: if refleg doesn't change, don't do anything
+        # if you are moving and not the current refleg
+        # check amtill of your next step, if you'd suddenly become the refleg
+        # check amtill of next refleg step, if nothing happened and refleg stayed as refleg
+        # choose the smaller one, set as refleg
+        # if refleg doesn't change, don't do anything
         # ~~~~~~~~~~~~~~~~~~~~~~ REFLEG ~~~~~~~~~~~~~~~~~~~~~~
         for curLeg in range(0, 4):
             if moveCountdown[curLeg] == 0:
@@ -278,7 +279,7 @@ def mainLoop():
 
                         amTillNew += 1
 
-                    # TODO: find next refleg step position
+                    # find next refleg step position
 
                     foundPos2 = findNext(dPoints, bodyCorners[otherLeg], bodyAng, otherLeg)
 
@@ -558,10 +559,6 @@ def calcRots(xyz, leg):
 
 # Drive all motors of a leg
 def moveLegs(rots, leg):
-
-    # if leg == 2 or leg == 3:
-        # print(str(leg) + ": " + str(int(rots[0])) + ", " + str(int(rots[1])) + ", " + str(int(rots[2])))
-
     driveLeg(leg, 0, rots[0])
 
     time.sleep(stdDelay)
@@ -630,106 +627,142 @@ def globToLoc(glob_p, orig_p, orig_rot, flipY=0, zHeight=0):
     return [cosAm * rel_x - sinAm * rel_y, (sinAm * rel_x + cosAm * rel_y) * ((-1) ** flipY), zHeight]
 
 
+def takeImage(q):
+    with dai.Device(pipeline) as device:
+        # Output queue will be used to get the disparity frames from the outputs defined above
+        depQ = device.getOutputQueue(name="depOut", maxSize=4, blocking=False)
+        rQ = device.getOutputQueue(name="outR", maxSize=4, blocking=False)
+
+        while True:
+            try:
+                inDisp = depQ.get()  # blocking call, will wait until a new data has arrived
+                inR = rQ.get()
+
+                frameDep = inDisp.getFrame()
+                frameR = inR.getCvFrame()
+
+                curTime = int(time.time())
+                f = open("images/latestTime.txt", "w")
+                f.write(str(curTime))
+                f.close()
+
+                depCol = cv2.applyColorMap(cv2.convertScaleAbs(frameDep * 10, alpha=(255.0 / 65535.0)),
+                                           cv2.COLORMAP_JET)
+                cv2.imwrite("images/depth-" + str(curTime) + ".png", depCol)
+                cv2.imwrite("images/col-" + str(curTime) + ".png", frameR)
+
+                dispCalc = np.divide(focalLen*baseline, frameDep)
+
+                cv2.imwrite("images/dispCalc-" + str(curTime) + ".png",
+                            cv2.applyColorMap(cv2.convertScaleAbs(dispCalc * 10, alpha=(255.0 / 65535.0)), cv2.COLORMAP_JET))
+
+                vDisp, uDisp = UVdisp.uvDisp(dispCalc)
+                shellFlat, unknFlat, walkFlat = obstacleDetect.detect(vDisp, dispCalc, frameDep, verbose=True)
+
+                onPath, path, closestNode, voro, walkmap = \
+                    aStar.aStar(shellFlat, unknFlat, walkFlat, (0, shellFlat.shape[1] - 1), verbose=True,
+                                distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=width/2+lineDist)
+
+                print("a* done")
+
+                lastlast = None
+                last = None
+
+                points = [path[0]]
+                curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
+
+                for ind, cur in enumerate(path):
+                    curX = cur[1]*50
+                    curY = -(cur[0]-shellFlat.shape[0]/2)*50
+                    if lastlast is not None and last is not None:
+                        if last[0] != (curX+lastlast[0])/2 or last[1] != (curY+lastlast[1])/2:
+                            points.append(last)
+
+                    lastlast = last
+                    last = (curX, curY)
+
+                print("points mapping done")
+
+                newCurves = []
+
+                if len(points) > 2:
+                    enddX = (points[0][0] + points[1][0])/2
+                    enddY = (points[0][1] + points[1][1])/2
+                    curv = curves.quadBezier(points[0], ((enddX+points[0][0])/2, (enddY+points[0][1])/2), (enddX, enddY))
+                    newCurves.append(curv)
+                    for i in curv.renderPoints():
+                        curvedpath[int(shellFlat.shape[0]/2-i[1]/50), int(i[0]/50)] = 1
+
+                    for ind in range(1, len(points)-1):
+                        sttX = (points[ind-1][0] + points[ind][0])/2
+                        sttY = (points[ind-1][1] + points[ind][1])/2
+                        enddX = (points[ind+1][0] + points[ind][0])/2
+                        enddY = (points[ind+1][1] + points[ind][1])/2
+                        curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
+                        for i in curv.renderPoints():
+                            curvedpath[int(shellFlat.shape[0]/2-i[1]/50), int(i[0]/50)] = 1
+                        newCurves.append(curv)
+
+                    sttX = (points[len(points)-2][0] + points[len(points)-1][0]) / 2
+                    sttY = (points[len(points)-2][1] + points[len(points)-1][1]) / 2
+                    curv = curves.quadBezier((sttX, sttY), ((sttX + points[len(points)-1][0]) / 2, (sttY + points[len(points)-1][1]) / 2),
+                                             points[len(points)-1])
+                    newCurves.append(curv)
+
+                    for i in curv.renderPoints():
+                        curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50)] = 1
+
+                elif len(points) > 1:
+                    curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
+                                                         (points[1][1] + points[0][1]) / 2), points[1])
+                    newCurves.append(curv)
+                    for i in curv.renderPoints():
+                        curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50)] = 1
+                else:
+                    pass
+                    # break
+
+                print("curve points done")
+
+                cv2.imwrite("images/onpath-" + str(curTime) + ".png", onPath * 255)
+                cv2.imwrite("images/curvePath-" + str(curTime) + ".png", curvedpath * 255)
+                cv2.imwrite("images/voro-" + str(curTime) + ".png", voro * 50)
+                cv2.imwrite("images/walkMap-" + str(curTime) + ".png", walkmap * 255)
+
+                q.put(newCurves)
+
+            except ValueError:
+                print("ERRORED")
+
+            time.sleep(camSleepTime)
+
+
 # program start
 if __name__ == "__main__":
 
-    mainLoop()
+    qu = Queue()
 
-    # with dai.Device(pipeline) as device:
-    #     # Output queue will be used to get the disparity frames from the outputs defined above
-    #     depQ = device.getOutputQueue(name="depOut", maxSize=4, blocking=False)
-    #     rQ = device.getOutputQueue(name="outR", maxSize=4, blocking=False)
-    #
-    #     while True:
-    #         inDisp = depQ.get()  # blocking call, will wait until a new data has arrived
-    #         inR = rQ.get()
-    #
-    #         frameDep = inDisp.getFrame()
-    #         frameR = inR.getCvFrame()
-    #
-    #         dispCalc = np.divide(focalLen*baseline, frameDep)
-    #
-    #         vDisp, uDisp = UVdisp.uvDisp(dispCalc)
-    #         shellFlat, unknFlat, walkFlat = obstacleDetect.detect(vDisp, dispCalc, frameDep, verbose=True)
-    #
-    #         onPath, path, closestNode, voro, walkmap = \
-    #             aStar.aStar(shellFlat, unknFlat, walkFlat, (0, shellFlat.shape[1] - 1), verbose=True,
-    #                         distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=width/2+lineDist)
-    #
-    #         lastlast = None
-    #         last = None
-    #
-    #         points = [path[0]]
-    #         curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
-    #
-    #         for ind, cur in enumerate(path):
-    #             curX = cur[1]*50
-    #             curY = -(cur[0]-shellFlat.shape[0]/2)*50
-    #             if lastlast is not None and last is not None:
-    #                 if last[0] != (curX+lastlast[0])/2 or last[1] != (curY+lastlast[1])/2:
-    #                     points.append(last)
-    #
-    #             lastlast = last
-    #             last = (curX, curY)
-    #
-    #         driveCurves = []
-    #
-    #         if len(points) > 2:
-    #             enddX = (points[0][0] + points[1][0])/2
-    #             enddY = (points[0][1] + points[1][1])/2
-    #             curv = curves.quadBezier(points[0], ((enddX+points[0][0])/2, (enddY+points[0][1])/2), (enddX, enddY))
-    #             driveCurves.append(curv)
-    #             for i in curv.renderPoints():
-    #                 curvedpath[int(shellFlat.shape[0]/2-i[1]/50), int(i[0]/50)] = 1
-    #
-    #             for ind in range(1, len(points)-1):
-    #                 sttX = (points[ind-1][0] + points[ind][0])/2
-    #                 sttY = (points[ind-1][1] + points[ind][1])/2
-    #                 enddX = (points[ind+1][0] + points[ind][0])/2
-    #                 enddY = (points[ind+1][1] + points[ind][1])/2
-    #                 curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
-    #                 for i in curv.renderPoints():
-    #                     curvedpath[int(shellFlat.shape[0]/2-i[1]/50), int(i[0]/50)] = 1
-    #                 driveCurves.append(curv)
-    #
-    #             sttX = (points[len(points)-2][0] + points[len(points)-1][0]) / 2
-    #             sttY = (points[len(points)-2][1] + points[len(points)-1][1]) / 2
-    #             curv = curves.quadBezier((sttX, sttY), ((sttX + points[len(points)-1][0]) / 2, (sttY + points[len(points)-1][1]) / 2),
-    #                                      points[len(points)-1])
-    #             driveCurves.append(curv)
-    #
-    #             for i in curv.renderPoints():
-    #                 curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50)] = 1
-    #
-    #         elif len(points) > 1:
-    #             curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
-    #                                                  (points[1][1] + points[0][1]) / 2), points[1])
-    #             driveCurves.append(curv)
-    #             for i in curv.renderPoints():
-    #                 curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50)] = 1
-    #         else:
-    #             break
-    #
-    #         curTime = int(time.time())
-    #
-    #         f = open("images/latestTime.txt", "w")
-    #         f.write(str(curTime))
-    #         f.close()
-    #
-    #         cv2.imwrite("images/onpath-" + str(curTime) + ".png", onPath * 255)
-    #         cv2.imwrite("images/curvePath-" + str(curTime) + ".png", curvedpath * 255)
-    #         cv2.imwrite("images/voro-" + str(curTime) + ".png", voro * 50)
-    #         cv2.imwrite("images/walkMap-" + str(curTime) + ".png", walkmap * 255)
-    #         depCol = cv2.applyColorMap(cv2.convertScaleAbs(frameDep * 10, alpha=(255.0 / 65535.0)), cv2.COLORMAP_JET)
-    #         cv2.imwrite("images/depth-" + str(curTime) + ".png", depCol)
-    #         cv2.imwrite("images/dispCalc-" + str(curTime) + ".png",
-    #                     cv2.applyColorMap(cv2.convertScaleAbs(dispCalc * 10, alpha=(255.0 / 65535.0)), cv2.COLORMAP_JET))
-    #
-    #         mainLoop()
-    #
-    #         if lastRelPos is None:
-    #             break
-    #
-    #         for i in range(4):
-    #             legPos[i] = locToGlob(lastRelPos[i], (0, 0), 0)
-    #         coords = lastRelPos
+    mainLoop(qu)
+
+    p = Process(target=takeImage, args=(qu,), daemon=True)
+    p.start()
+
+    while True:
+        while qu.empty():
+            print("image check... empty")
+            time.sleep(waitTime)
+
+        while not qu.empty():
+            print("image got")
+            driveCurves = qu.get()
+
+        mainLoop(qu)
+
+        print("loop over")
+
+        if lastRelPos is None:
+            break
+
+        for i in range(4):
+            legPos[i] = locToGlob(lastRelPos[i], (0, 0), 0)
+        # coords = lastRelPos.copy()
