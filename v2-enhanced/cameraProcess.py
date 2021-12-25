@@ -8,12 +8,12 @@ import obstacleDetect
 import aStar
 
 
-def takeImage(q, pipeline, camSleepTime, flag, **args):
+def takeImage(q, lock, pipeline, camSleepTime, **args):
     """
     :param q: queue for images
+    :param lock: lock for camera process
     :param pipeline: pipeline for camera
     :param camSleepTime:  time to sleep for camera
-    :param flag: flag for if camera should run
     :param args: flagWaitTime, focalLen, baseline, robotWidth
     :return:
     """
@@ -29,8 +29,7 @@ def takeImage(q, pipeline, camSleepTime, flag, **args):
         rQ = device.getOutputQueue(name="outR", maxSize=4, blocking=False)
 
         while True:
-            while bool(flag.value):
-                time.sleep(flagWaitTime)
+            lock.acquire()
 
             try:
                 inDisp = depQ.get()  # blocking call, will wait until a new data has arrived
@@ -131,5 +130,7 @@ def takeImage(q, pipeline, camSleepTime, flag, **args):
 
             except ValueError:
                 print("ERRORED")
+
+            lock.release()
 
             time.sleep(camSleepTime)

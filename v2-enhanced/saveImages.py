@@ -13,7 +13,7 @@ subpixel = True
 # Better handling for occlusions:
 lr_check = True
 
-imgid = 'CAL-' + ('SP' if subpixel else '') + ('LR' if lr_check else '')
+imgid = 'ROT-' + ('SP' if subpixel else '') + ('LR' if lr_check else '')
 
 focalLen = 441.25*31.35
 baseline = 7.5*10
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         controlQueue = device.getInputQueue('control')
 
         its = 0
-        counter = 15
+        counter = 0
 
         while True:
 

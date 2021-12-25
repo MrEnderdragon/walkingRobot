@@ -95,14 +95,16 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
     if verbose:
         print("masking start")
 
+    slope = np.tan(bestAng + np.pi / 2)
+    (x0, y0) = bestDist * np.array([np.cos(bestAng), np.sin(bestAng)])
+
     rows, cols = disp.shape
     for ii in range(rows):
-        slope = np.tan(bestAng + np.pi / 2)
-        (x0, y0) = bestDist * np.array([np.cos(bestAng), np.sin(bestAng)])
-        thresh = (ii - y0) / slope + x0
+        thresh = ((ii - y0) / slope + x0) + (args["floorThresh"] if "floorThresh" in args else 10)
 
         for jj in range(cols):
-            if dispScaled[ii, jj] < thresh + (args["floorThresh"] if "floorThresh" in args else 10):
-                floorMask[ii, jj] = 0
+            floorMask[ii, ...] = dispScaled[ii, ...] < thresh
+            # if dispScaled[ii, jj] < thresh:
+            #     floorMask[ii, jj] = 0
 
     return (bestAng, bestDist), disp, dispScaled, floorMask
