@@ -72,7 +72,7 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     # cv2.imshow("obs", obstacles.astype(np.uint8)*255)
     # cv2.imshow("canWalk", canWalk.astype(np.uint8)*255)
 
-    walkMap = canWalk - obsNoDialate
+    walkMap = np.clip(canWalk.astype(np.int8) - obsNoDialate.astype(np.int8), 0, None).astype(np.bool_)
     walkMapD = canWalk - obstacles
 
     # cv2.imshow("walkmap", walkMap.astype(np.uint8)*255)
