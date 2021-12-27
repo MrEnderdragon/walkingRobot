@@ -1,4 +1,5 @@
-runRobot = False
+import os
+runRobot = int(os.environ['RUN_ROBOT']) > 0
 
 import math
 import time

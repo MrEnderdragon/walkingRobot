@@ -154,7 +154,7 @@ def rot(coordinates, rotation):  # takes in X by 3
     return coordinates
 
 
-def detectMult(vDisps, disps, deps, rots, verbose=False, display=False):
+def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     """
         :param vDisps: array of v disparity
         :param disps: array of disparity
@@ -162,13 +162,17 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False):
         :param rots: array of camera rotations
         :param verbose: print info?
         :param display: display obstacles?
+        :param args: floorThresh
         :return: shellFlat, obsFlat, walkFlat
     """
+
+    floorThresh = args["floorThresh"] if "floorThresh" in args else 0.5
 
     mapFloorLess = np.zeros((0, 3), dtype=int)
     mapFloor = np.zeros((0, 3), dtype=int)
 
     shellFlat = np.zeros((int(maxSize*2 / step), int(maxSize*2 / step)), dtype=np.bool_)
+    walkFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
 
     dep = deps[0][0:360, ...]
 
@@ -184,21 +188,48 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False):
         xsFloorLess, ysFloorLess = np.where(floor == 0)
         xsFloor, ysFloor = np.where(floor == 1)
 
+        if len(xsFloor) > (len(xsFloor) + len(xsFloorLess))*floorThresh:
+            if verbose:
+                print("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
+        else:
+            mapFloor = np.append(mapFloor, np.floor(scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
+
         mapFloorLess = np.append(mapFloorLess, np.floor(scale(rot(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)  # X, 3
-        mapFloor = np.append(mapFloor, np.floor(scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
+
+        xzRat = (dep.shape[1] / 2) / focalLen
+
+        angle = np.arctan2(focalLen, (dep.shape[1] / 2))
+
+        rows, cols = walkFlat.shape
+        for row in range(rows):
+            for col in range(cols):
+                rowNew = row - int(rows/2)
+                colNew = col - int(cols/2)
+                # if -xzRat * max(col, int(minSee / step)) + rows / 2 < row < xzRat * max(col, int(minSee / step)) + rows / 2:
+                if rots[i] - angle < np.arctan2(rowNew, colNew) < rots[i] + angle or np.sqrt(rowNew**2 + colNew**2) < minSee/step:
+                    walkFlat[row, col] = 1
 
     floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
-                                   np.all(mapFloor < maxSize*2 / step, axis=1)
+                                   np.all(mapFloor < maxSize*2 / step, axis=1),
+
+                                   (np.sqrt((mapFloor[:, 2] - maxSize / step) ** 2 +
+                                            (mapFloor[:, 1] - maxSize / step) ** 2 +
+                                            (mapFloor[:, 0] - maxSize / 10 / step) ** 2) > minSee / step),
+
                                    ], axis=0))
 
     uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
-    floorheight = np.max(uniqueF[:, 0])
+    floorheight = np.min(uniqueF[:, 0]) if len(uniqueF) > 0 else 0
 
     floorLessCoords = np.where(np.all([np.all(mapFloorLess > 0, axis=1),
                                        np.all(mapFloorLess < maxSize*2 / step, axis=1),
-                                       # ((mapFloorLess > minSee / step)[:, 2]),
-                                       # ((mapFloorLess > floorheight+(maxCanOver/step))[:, 0]),
-                                       # ((mapFloorLess < floorheight+(minCanUnder/step))[:, 0])
+
+                                       (np.sqrt((mapFloorLess[:, 2]-maxSize/step)**2 +
+                                                (mapFloorLess[:, 1]-maxSize/step)**2 +
+                                                (mapFloorLess[:, 0]-maxSize/10/step)**2) > minSee / step),
+
+                                       ((mapFloorLess > floorheight+(maxCanOver/step))[:, 0]),
+                                       ((mapFloorLess < floorheight+(minCanUnder/step))[:, 0])
                                        ], axis=0))
 
     uniqueFL, countsFL = np.unique(mapFloorLess[floorLessCoords], return_counts=True, axis=0)
@@ -208,16 +239,12 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False):
     shellx, shelly, shellz = shellVox
 
     if display:
-        shellx, shelly, shellz = mapFloorLess[floorLessCoords].T
         shellx, shelly, shellz = shellVox
         print(len(shellx))
         floorVox = uniqueF[countsF > thresh].T
         floorx, floory, floorz = floorVox
         print(len(floorx))
         import mayavi.mlab
-        # objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0, 0, 0.6), opacity=1)
-        # shell = mayavi.mlab.points3d(-shelly, -shellz, shellx, mode="cube", scale_factor=0.8, color=(1, 0, 0))
-        # floor = mayavi.mlab.points3d(-floory, -floorz, floorx, mode="cube", scale_factor=0.8, color=(0, 1, 0))
 
         shell = mayavi.mlab.points3d(-shelly, -shellz, shellx, mode="cube", scale_factor=0.8, color=(1, 0, 0))
         floor = mayavi.mlab.points3d(-floory, -floorz, floorx, mode="cube", scale_factor=0.8, color=(0, 1, 0))
@@ -263,7 +290,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False):
         # angleBottom = np.min(yAngs)
 
         # angleStepUp = (angleTop-angleBottom) / (10)
-        angleStepSide = (angleRight-angleLeft) / (10)
+        angleStepSide = (angleRight-angleLeft) / 10
 
         for dist in range(int(np.sqrt(pos[2]**2 + pos[1]**2 + pos[0]**2)), int(maxSize*1.5), objstep):
             cont = False
@@ -284,43 +311,6 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False):
             # if not cont:
             #     break
 
-    # xzRatSmall = shellUnsc[0]/shellUnsc[2]
-    # xzRatBig = (shellUnsc[0]+step)/shellUnsc[2]
-    # yzRatSmall = shellUnsc[1]/shellUnsc[2]
-    # yzRatBig = (shellUnsc[1]+step)/shellUnsc[2]
-    #
-    # testZs = np.tile(shellUnsc[2].reshape(-1, 1), reps=(1, int(maxSize*2/objstep)-1))+np.arange(1, int(maxSize*2/objstep)).reshape(1, -1)*objstep
-    #
-    # xzStarts = (testZs*xzRatSmall.reshape(-1, 1))
-    # xzEnds = (testZs*xzRatBig.reshape(-1, 1))
-    # yzStarts = (testZs*yzRatSmall.reshape(-1, 1))
-    # yzEnds = (testZs*yzRatBig.reshape(-1, 1))
-
-    # rowss, colss = xzStarts.shape
-    # for ind in range(rowss):
-    #     for zInd in range(colss):
-    #         cont = False
-    #         for xx in range(xzStarts[ind, zInd].astype(int), xzEnds[ind, zInd].astype(int), step):
-    #             for yy in range(yzStarts[ind, zInd].astype(int), yzEnds[ind, zInd].astype(int), step):
-    #                 coords = scaleOld([xx, yy, testZs[ind, zInd]], mid)
-    #                 if fits(0, maxSize*2, coords):
-    #                     cont = True
-    #                     if floorheight+(maxCanOver/step) < coords[0]/step < floorheight+(minCanUnder/step) and \
-    #                             obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
-    #                         obsFlat[int(coords[1] / step), int(coords[2] / step)] = 1
-    #         if not cont:
-    #             break
-
     shellFlat[shelly, shellz] = 1
-
-    walkFlat = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.bool_)
-
-    xzRat = (dep.shape[1]/2) / focalLen
-
-    rows, cols = walkFlat.shape
-    for row in range(rows):
-        for col in range(cols):
-            if -xzRat*max(col, int(minSee/step)) + rows/2 < row < xzRat*max(col, int(minSee/step)) + rows/2:
-                walkFlat[row, col] = 1
 
     return shellFlat, obsFlat, walkFlat

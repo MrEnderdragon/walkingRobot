@@ -9,7 +9,7 @@ if runRobot:
     import regMove
 from enum import Enum
 import depthai as dai
-import cameraProcess
+import cameraProcessTurn
 # import curves
 # import numpy as np
 # import cv2
@@ -131,7 +131,7 @@ lr_check = True
 focalLen = 441.25*31.35
 baseline = 7.5*10
 
-camSleepTime = 5
+camSleepTime = 30
 waitTime = 2
 
 # Create pipeline
@@ -207,10 +207,12 @@ def mainLoop(q, lock):
     # for i in range(len(coords)):
     #     moveLegs(calcRots(coords[i], i), i)
 
+    dPoints = generate()
+
     bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
     for ind in range(4):
-        bodyCorners[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
+        bodyCorners[ind] = locToGlob(cornerPoint[ind], [0, 0], dPoints[1] if len(dPoints) > 1 else 0)
 
     lock.acquire()
     for j in range(len(legPos)):
@@ -223,8 +225,6 @@ def mainLoop(q, lock):
         lock.acquire()
         regMove.actAll(serial_connection)
         lock.release()
-
-    dPoints = generate()
 
     for posInd in range(0, len(dPoints)-50, 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
 
@@ -661,7 +661,7 @@ if __name__ == "__main__":
 
     mainLoop(qu, ll)
 
-    p = Process(target=cameraProcess.takeImage, args=(qu, ll, pipeline, camSleepTime),
+    p = Process(target=cameraProcessTurn.takeImage, args=(qu, ll, pipeline, camSleepTime),
                 kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
                 daemon=True)
 
