@@ -3,17 +3,20 @@ runRobot = int(os.environ['RUN_ROBOT']) > 0
 
 import math
 import time
+from multiprocessing import Process, Queue, Lock
 if runRobot:
     from pyax12.connection import Connection
     import regMove
 from enum import Enum
-import curves
 import depthai as dai
+import cameraProcessTurn
+import copy
+# import curves
 import numpy as np
-import cv2
-import UVdisp
-import obstacleDetect
-import aStar
+# import cv2
+# import UVdisp
+# import obstacleDetect
+# import aStar
 PI = 3.1415
 
 # AX-12A motor connection
@@ -44,6 +47,17 @@ liftHeight = 40
 # amount to tilt before stepping
 tiltHeight = 10
 
+# height of turn line
+turnWalkHeight = 90
+# distance of steps from body
+turnLineDist = 120
+# how much to lift leg to step
+turnLiftHeight = 40
+# amount to tilt before stepping
+turnTiltHeight = 10
+
+turnStepDegs = 15
+
 # leg max outwards reach
 outX = 120
 outDist = math.sqrt(outX**2 + lineDist**2)
@@ -54,16 +68,12 @@ inDist = math.sqrt(inX**2 + lineDist**2)
 inAng = math.atan2(inX, lineDist)
 
 order = [0, 3, 1, 2]  # order to take steps
+turnOrder = [0, 3, 1, 2]  # order to take steps
 
 # program variables V V V
 opposites = [3, 2, 1, 0]  # opposites of every leg
 
-# empty array to store instructions (old)
-moves = [
-    [] for it in opposites
-]
-
-# initial starting coordinates (old)
+# initial starting coordinates
 coords = [
     [outX, lineDist, -walkHeight],
     [outX, lineDist, -walkHeight],
@@ -96,23 +106,27 @@ driveAcc = 10  # accuracy of driving for curves (mm)
 #                curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius*3)),
 #                curves.quadBezier((-radius, -radius*3), (-radius, -radius*4), (0, -radius*4))]
 
-radius = 10*10  # millimeters * 10 = centimeters
-driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, -radius)),
-               curves.quadBezier((radius, -radius), (radius, -radius*2), (0, -radius*2)),
-               curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius)),
-               curves.quadBezier((-radius, -radius), (-radius, 0), (0, 0))]
-
 # radius = 70 * 10
 # driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0)), curves.quadBezier((radius, 0), (radius+radius, 0), (radius+radius, -radius))]
 
 # radius = 300 * 10
 # driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0))]
-# driveCurves = []
+driveCurves = []
 
 legPos = [[height / 2 - inX, width / 2 + lineDist],
           [height / 2 + outX - (outX + inX) * 1 / 3, -width / 2 - lineDist],
           [-height / 2 + inX, width / 2 + lineDist],
-          [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]]  # initial positions of legs
+          [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]]  # initial positions of legs (global)
+
+relStPos = [[- inX, lineDist],
+            [+ outX - (outX + inX) * 1 / 3, lineDist],
+            [+ inX, width / 2 + lineDist],
+            [- outX + (outX + inX) * 1 / 3, lineDist]]
+
+turnStPos = [[-inX, turnLineDist+lineDist],
+             [outX, turnLineDist-lineDist],
+             [-outX, turnLineDist-lineDist],
+             [inX, turnLineDist+lineDist]]
 
 refLeg = order[0]
 refFlag = True
@@ -128,10 +142,7 @@ moveCountdown = [-1, -1, -1, -1]
 
 lastFoundP = [0, 0, 0, 0]
 
-lastRelPos = [[height / 2 - inX, width / 2 + lineDist],
-              [height / 2 + outX - (outX + inX) * 1 / 3, -width / 2 - lineDist],
-              [-height / 2 + inX, width / 2 + lineDist],
-              [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]]
+lastRelPos = legPos.copy()
 
 # Closer-in minimum depth, disparity range is doubled (from 95 to 190):
 extended_disparity = False  # doesn't work
@@ -143,42 +154,45 @@ lr_check = True
 focalLen = 441.25*31.35
 baseline = 7.5*10
 
-# # Create pipeline
-# pipeline = dai.Pipeline()
-#
-# # Define sources and outputs
-# monoLeft = pipeline.createMonoCamera()
-# monoRight = pipeline.createMonoCamera()
-#
-# depth = pipeline.createStereoDepth()
-#
-# outDisp = pipeline.createXLinkOut()
-# outDisp.setStreamName("depOut")
-#
-# outR = pipeline.createXLinkOut()
-# outR.setStreamName("outR")
-#
-# # Properties
-# monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-# monoLeft.setBoardSocket(dai.CameraBoardSocket.LEFT)
-# monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-# monoRight.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-#
-# # Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
-# depth.initialConfig.setConfidenceThreshold(200)
-# # Options: MEDIAN_OFF, KERNEL_3x3, KERNEL_5x5, KERNEL_7x7 (default)
-# depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
-# depth.setLeftRightCheck(subpixel)
-# depth.setExtendedDisparity(extended_disparity)
-# depth.setSubpixel(lr_check)
-#
-# # Linking
-# monoLeft.out.link(depth.left)
-# monoRight.out.link(depth.right)
-#
-# monoRight.out.link(outR.input)
-#
-# depth.depth.link(outDisp.input)
+camSleepTime = 30
+waitTime = 5
+
+# Create pipeline
+pipeline = dai.Pipeline()
+
+# Define sources and outputs
+monoLeft = pipeline.createMonoCamera()
+monoRight = pipeline.createMonoCamera()
+
+depth = pipeline.createStereoDepth()
+
+outDisp = pipeline.createXLinkOut()
+outDisp.setStreamName("depOut")
+
+outR = pipeline.createXLinkOut()
+outR.setStreamName("outR")
+
+# Properties
+monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+monoLeft.setBoardSocket(dai.CameraBoardSocket.LEFT)
+monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+monoRight.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+
+# Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
+depth.initialConfig.setConfidenceThreshold(200)
+# Options: MEDIAN_OFF, KERNEL_3x3, KERNEL_5x5, KERNEL_7x7 (default)
+depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
+depth.setLeftRightCheck(subpixel)
+depth.setExtendedDisparity(extended_disparity)
+depth.setSubpixel(lr_check)
+
+# Linking
+monoLeft.out.link(depth.left)
+monoRight.out.link(depth.right)
+
+monoRight.out.link(outR.input)
+
+depth.depth.link(outDisp.input)
 
 
 # Instruction types
@@ -210,25 +224,45 @@ class inst:
 
 
 # Main loop
-def mainLoop():
+def mainLoop(q, lock):
     global lastMoved, cornerPoint, refFlag, lastFoundP, lastRelPos, refLeg
 
-    for i in range(len(coords)):
-        moveLegs(calcRots(coords[i], i), i)
-
-    time.sleep(stdDelay)
-    if runRobot:
-        regMove.actAll(serial_connection)
+    # for i in range(len(coords)):
+    #     moveLegs(calcRots(coords[i], i), i)
 
     dPoints = generate()
 
-    print("am points: " + str(len(dPoints)))
+    bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
-    # for i in range(0, len(dPoints), 2):
-    #     print("(" + str(dPoints[i][0]) + "," + str(dPoints[i][1]) + ")")
+    for ind in range(4):
+        bodyCorners[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
 
-    for posInd in range(0, len(dPoints)-50, 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
-        # print(i)
+    lock.acquire()
+    for j in range(4):
+        moveLegs(calcRots(globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight), j), j)
+    lock.release()
+
+    time.sleep(stdDelay)
+
+    if runRobot:
+        lock.acquire()
+        regMove.actAll(serial_connection)
+        lock.release()
+
+    if len(dPoints) > 1 and dPoints[1] != 0:
+        tmpRelPos = [[], [], [], []]
+        for j in range(4):
+            tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight)
+        stepLegs(tmpRelPos, turnStPos, walkHeight, turnWalkHeight)
+        spotTurn(np.rad2deg(dPoints[1]))
+        for j in range(4):
+            tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight)
+        stepLegs(tmpRelPos, relStPos, turnWalkHeight, walkHeight)
+
+    for posInd in range(0, min(len(dPoints)-50, 120), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
+
+        if not q.empty():
+            break
 
         bodyX = dPoints[posInd][0]
         bodyY = dPoints[posInd][1]
@@ -244,11 +278,11 @@ def mainLoop():
 
         foundPos = None
 
-        # TODO: if you are moving and not the current refleg
-        # TODO: check amtill of your next step, if you'd suddenly become the refleg
-        # TODO: check amtill of next refleg step, if nothing happened and refleg stayed as refleg
-        # TODO: choose the smaller one, set as refleg
-        # TODO: if refleg doesn't change, don't do anything
+        # if you are moving and not the current refleg
+        # check amtill of your next step, if you'd suddenly become the refleg
+        # check amtill of next refleg step, if nothing happened and refleg stayed as refleg
+        # choose the smaller one, set as refleg
+        # if refleg doesn't change, don't do anything
         # ~~~~~~~~~~~~~~~~~~~~~~ REFLEG ~~~~~~~~~~~~~~~~~~~~~~
         for curLeg in range(0, 4):
             if moveCountdown[curLeg] == 0:
@@ -263,7 +297,7 @@ def mainLoop():
 
                     # see what is amtill if you suddently become the ref leg
                     amTillNew = 0
-                    foundNew = False
+                    # foundNew = False
                     findFlagNew = False
                     for posIndNext in range(0, len(dPoints), 2):
 
@@ -280,17 +314,17 @@ def mainLoop():
                             findFlagNew = True
 
                         if findDist > (inDist if 0 <= 1 else outDist) and findFlagNew:
-                            foundNew = True
+                            # foundNew = True
                             break
 
                         amTillNew += 1
 
-                    # TODO: find next refleg step position
+                    # find next refleg step position
 
                     foundPos2 = findNext(dPoints, bodyCorners[otherLeg], bodyAng, otherLeg)
 
                     amTillRef = 0
-                    foundRef = False
+                    # foundRef = False
                     findFlagRef = False
                     for posIndNext in range(0, len(dPoints), 2):
 
@@ -307,7 +341,7 @@ def mainLoop():
                             findFlagRef = True
 
                         if findDist > (inDist if otherLeg <= 1 else outDist) and findFlagRef:
-                            foundRef = True
+                            # foundRef = True
                             break
 
                         amTillRef += 1
@@ -321,7 +355,7 @@ def mainLoop():
                     foundPosTmp1 = findNext(dPoints, tmpCorner, bodyAngtmpRef, otherLeg)
 
                     amTillRefFind = 0
-                    foundRef = False
+                    # foundRef = False
                     findFlagRef = False
                     for posIndNext in range(0, len(dPoints), 2):
 
@@ -338,7 +372,7 @@ def mainLoop():
                             findFlagRef = True
 
                         if findDist > (inDist if otherLeg <= 1 else outDist) and findFlagRef:
-                            foundRef = True
+                            # foundRef = True
                             break
 
                         amTillRefFind += 1
@@ -405,17 +439,24 @@ def mainLoop():
 
         relLegPos = [[], [], [], []]
 
-        for i in range(4):  # calculate leg positions relative to body
-            relLegPos[i] = globToLoc(legPos[i], bodyCorners[i], bodyAng, i, -walkHeight)
+        for j in range(4):  # calculate leg positions relative to body
+            relLegPos[j] = globToLoc(legPos[j], bodyCorners[j], bodyAng, j, -walkHeight)
 
         if lastMoved and legMoved == -1:  # un-tilt
             lastMoved = False
+
+            lock.acquire()
             for leg in range(4):
                 execInst(inst(inst_type.abs, relLegPos[leg]), leg)
+            lock.release()
 
             time.sleep(stdDelay)
+
             if runRobot:
+                lock.acquire()
                 regMove.actAll(serial_connection)
+                lock.release()
+
             time.sleep(stdDelay)
 
             time.sleep(timePerCycle)
@@ -423,6 +464,7 @@ def mainLoop():
         if legMoved != -1:  # a leg has reached its time, move it
 
             lastMoved = True
+            lock.acquire()
             for leg in range(4):  # move back and tilt
                 if leg == legMoved:
                     execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight - tiltHeight]), leg)
@@ -430,14 +472,20 @@ def mainLoop():
                     execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight + tiltHeight]), leg)
                 else:
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
+            lock.release()
 
             time.sleep(stdDelay)
+
             if runRobot:
+                lock.acquire()
                 regMove.actAll(serial_connection)
+                lock.release()
+
             time.sleep(stdDelay)
 
             time.sleep(timePerCycle)
 
+            lock.acquire()
             for leg in range(4):  # stay and move lifting leg forwards
                 if leg == legMoved:
                     cornerCoords = bodyCorners[legMoved]
@@ -453,15 +501,161 @@ def mainLoop():
                     execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight + tiltHeight]), leg)
                 else:
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
+            lock.release()
 
             lastRelPos = relLegPos
 
             time.sleep(stdDelay)
+
             if runRobot:
+                lock.acquire()
                 regMove.actAll(serial_connection)
+                lock.release()
+
             time.sleep(stdDelay)
 
             time.sleep(timePerCycle)
+
+
+def stepLegs(curRelPos, newRelPos, curHeight, newHeight):
+
+    curRelPos = copy.deepcopy(curRelPos)
+    newRelPos = copy.deepcopy(newRelPos)
+
+    for leg in range(4):
+        execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight]), leg)
+
+    time.sleep(stdDelay)
+
+    if runRobot:
+        regMove.actAll(serial_connection)
+
+    time.sleep(stdDelay)
+    time.sleep(timePerCycle)
+
+    for moveLeg in order:
+
+        for leg in range(4):  # move back and tilt
+            if leg == moveLeg:
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight - tiltHeight]), leg)
+            elif leg == opposites[moveLeg]:
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + tiltHeight]), leg)
+            else:
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight]), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+        time.sleep(timePerCycle)
+
+        for leg in range(4):  # move back and tilt
+            if leg == moveLeg:
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + liftHeight]), leg)
+            elif leg == opposites[moveLeg]:
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + tiltHeight]), leg)
+            else:
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight]), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+        time.sleep(timePerCycle)
+
+        for leg in range(4):  # move leg
+            if leg == moveLeg:
+                curRelPos[leg] = copy.deepcopy(newRelPos[leg])
+
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + liftHeight]), leg)
+            elif leg == opposites[moveLeg]:
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + tiltHeight]), leg)
+            else:
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight]), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+
+        for leg in range(4):
+            execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -newHeight]), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+
+
+def spotTurn(degs):
+    counter = 0
+
+    for ii in np.arange(0, int(degs/turnStepDegs)+1, 1 if degs > 0 else -1):
+        moveLeg = order[counter % len(order)]
+        counter = (counter + 1)
+        rotDegs = (counter * turnStepDegs * 1 if degs > 0 else -1) if abs(counter * turnStepDegs) < abs(degs) else degs
+        rot = np.deg2rad(rotDegs)
+
+        bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
+
+        for ind in range(4):
+            bodyCorners[ind] = locToGlob(cornerPoint[ind], [0, 0], rot)
+
+        for leg in range(4):  # move back and tilt
+            if leg == moveLeg:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight - turnTiltHeight)), leg)
+            elif leg == opposites[moveLeg]:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight + turnTiltHeight)), leg)
+            else:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight)), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+
+        for leg in range(4):  # move leg forward
+            if leg == moveLeg:
+                execInst(inst(inst_type.abs, (turnStPos[leg][0], turnStPos[leg][1], -turnWalkHeight + liftHeight)), leg)
+                legPos[leg] = locToGlob((turnStPos[leg][0], turnStPos[leg][1] * ((-1) ** leg)), bodyCorners[leg], rot)
+            elif leg == opposites[moveLeg]:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight + turnTiltHeight)), leg)
+            else:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight)), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+
+        for j in range(4):
+            execInst(inst(inst_type.abs, globToLoc(legPos[j], bodyCorners[j], rot, j, -turnWalkHeight)), j)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
 
 
 def findNext(dPoints, cornerCoord, bodyAng, leg):
@@ -531,9 +725,9 @@ def generate():
         pos, ang = curve.getPosDir(driveAcc, curOver)
         curOver = (curOver + curve.getLength()) % driveAcc
 
-        for i in range(len(pos)):
-            dirTmp.append(pos[i])
-            dirTmp.append(ang[i])
+        for j in range(len(pos)):
+            dirTmp.append(pos[j])
+            dirTmp.append(ang[j])
 
     return dirTmp
 
@@ -565,10 +759,6 @@ def calcRots(xyz, leg):
 
 # Drive all motors of a leg
 def moveLegs(rots, leg):
-
-    # if leg == 2 or leg == 3:
-        # print(str(leg) + ": " + str(int(rots[0])) + ", " + str(int(rots[1])) + ", " + str(int(rots[2])))
-
     driveLeg(leg, 0, rots[0])
 
     time.sleep(stdDelay)
@@ -591,15 +781,15 @@ def execInst(ins, leg):
     global coords
 
     if ins.type == inst_type.abs:
-        for i in range(0, 3):
-            if ins.args[i] is not None:
-                coords[leg][i] = ins.args[i]
+        for j in range(0, 3):
+            if ins.args[j] is not None:
+                coords[leg][j] = ins.args[j]
         moveLegs(calcRots(coords[leg], leg), leg)
 
     elif ins.type == inst_type.rel:
-        for i in range(0, 3):
-            if ins.args[i] is not None:
-                coords[leg][i] += ins.args[i]
+        for j in range(0, 3):
+            if ins.args[j] is not None:
+                coords[leg][j] += ins.args[j]
         moveLegs(calcRots(coords[leg], leg), leg)
 
 
@@ -640,103 +830,33 @@ def globToLoc(glob_p, orig_p, orig_rot, flipY=0, zHeight=0):
 # program start
 if __name__ == "__main__":
 
-    mainLoop()
+    qu = Queue()
+    ll = Lock()
 
-    # with dai.Device(pipeline) as device:
-    #     # Output queue will be used to get the disparity frames from the outputs defined above
-    #     depQ = device.getOutputQueue(name="depOut", maxSize=4, blocking=False)
-    #     rQ = device.getOutputQueue(name="outR", maxSize=4, blocking=False)
-    #
-    #     while True:
-    #         inDisp = depQ.get()  # blocking call, will wait until a new data has arrived
-    #         inR = rQ.get()
-    #
-    #         frameDep = inDisp.getFrame()
-    #         frameR = inR.getCvFrame()
-    #
-    #         dispCalc = np.divide(focalLen*baseline, frameDep)
-    #
-    #         vDisp, uDisp = UVdisp.uvDisp(dispCalc)
-    #         shellFlat, unknFlat, walkFlat = obstacleDetect.detect(vDisp, dispCalc, frameDep, verbose=True)
-    #
-    #         onPath, path, closestNode, voro, walkmap = \
-    #             aStar.aStar(shellFlat, unknFlat, walkFlat, (0, shellFlat.shape[1] - 1), verbose=True,
-    #                         distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=width/2+lineDist)
-    #
-    #         lastlast = None
-    #         last = None
-    #
-    #         points = [path[0]]
-    #         curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
-    #
-    #         for ind, cur in enumerate(path):
-    #             curX = cur[1]*50
-    #             curY = -(cur[0]-shellFlat.shape[0]/2)*50
-    #             if lastlast is not None and last is not None:
-    #                 if last[0] != (curX+lastlast[0])/2 or last[1] != (curY+lastlast[1])/2:
-    #                     points.append(last)
-    #
-    #             lastlast = last
-    #             last = (curX, curY)
-    #
-    #         driveCurves = []
-    #
-    #         if len(points) > 2:
-    #             enddX = (points[0][0] + points[1][0])/2
-    #             enddY = (points[0][1] + points[1][1])/2
-    #             curv = curves.quadBezier(points[0], ((enddX+points[0][0])/2, (enddY+points[0][1])/2), (enddX, enddY))
-    #             driveCurves.append(curv)
-    #             for i in curv.renderPoints():
-    #                 curvedpath[int(shellFlat.shape[0]/2-i[1]/50), int(i[0]/50)] = 1
-    #
-    #             for ind in range(1, len(points)-1):
-    #                 sttX = (points[ind-1][0] + points[ind][0])/2
-    #                 sttY = (points[ind-1][1] + points[ind][1])/2
-    #                 enddX = (points[ind+1][0] + points[ind][0])/2
-    #                 enddY = (points[ind+1][1] + points[ind][1])/2
-    #                 curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
-    #                 for i in curv.renderPoints():
-    #                     curvedpath[int(shellFlat.shape[0]/2-i[1]/50), int(i[0]/50)] = 1
-    #                 driveCurves.append(curv)
-    #
-    #             sttX = (points[len(points)-2][0] + points[len(points)-1][0]) / 2
-    #             sttY = (points[len(points)-2][1] + points[len(points)-1][1]) / 2
-    #             curv = curves.quadBezier((sttX, sttY), ((sttX + points[len(points)-1][0]) / 2, (sttY + points[len(points)-1][1]) / 2),
-    #                                      points[len(points)-1])
-    #             driveCurves.append(curv)
-    #
-    #             for i in curv.renderPoints():
-    #                 curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50)] = 1
-    #
-    #         elif len(points) > 1:
-    #             curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
-    #                                                  (points[1][1] + points[0][1]) / 2), points[1])
-    #             driveCurves.append(curv)
-    #             for i in curv.renderPoints():
-    #                 curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50)] = 1
-    #         else:
-    #             break
-    #
-    #         curTime = int(time.time())
-    #
-    #         f = open("images/latestTime.txt", "w")
-    #         f.write(str(curTime))
-    #         f.close()
-    #
-    #         cv2.imwrite("images/onpath-" + str(curTime) + ".png", onPath * 255)
-    #         cv2.imwrite("images/curvePath-" + str(curTime) + ".png", curvedpath * 255)
-    #         cv2.imwrite("images/voro-" + str(curTime) + ".png", voro * 50)
-    #         cv2.imwrite("images/walkMap-" + str(curTime) + ".png", walkmap * 255)
-    #         depCol = cv2.applyColorMap(cv2.convertScaleAbs(frameDep * 10, alpha=(255.0 / 65535.0)), cv2.COLORMAP_JET)
-    #         cv2.imwrite("images/depth-" + str(curTime) + ".png", depCol)
-    #         cv2.imwrite("images/dispCalc-" + str(curTime) + ".png",
-    #                     cv2.applyColorMap(cv2.convertScaleAbs(dispCalc * 10, alpha=(255.0 / 65535.0)), cv2.COLORMAP_JET))
-    #
-    #         mainLoop()
-    #
-    #         if lastRelPos is None:
-    #             break
-    #
-    #         for i in range(4):
-    #             legPos[i] = locToGlob(lastRelPos[i], (0, 0), 0)
-    #         coords = lastRelPos
+    mainLoop(qu, ll)
+
+    p = Process(target=cameraProcessTurn.takeImage, args=(qu, ll, pipeline, camSleepTime),
+                kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
+                daemon=True)
+
+    p.start()
+
+    while True:
+        while qu.empty():
+            print("path check... empty")
+            time.sleep(waitTime)
+
+        while not qu.empty():
+            print("path got")
+            driveCurves = qu.get()
+
+        mainLoop(qu, ll)
+
+        print("loop over")
+
+        if lastRelPos is None:
+            break
+
+        for i in range(4):
+            legPos[i] = locToGlob(lastRelPos[i], (0, 0), 0)
+        # coords = lastRelPos.copy()

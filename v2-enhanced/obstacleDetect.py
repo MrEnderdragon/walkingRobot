@@ -32,8 +32,8 @@ def mapArr(xs, ys, depth):
 
     conv = np.divide(zs, focalLen)
 
-    #return np.array([xs * conv, ys * conv, conv * focalLen])
     return np.array([ys * conv, conv * focalLen, -xs * conv])
+
 
 def fits(minVal, maxVal, arr):
     for ind in arr:
@@ -44,18 +44,15 @@ def fits(minVal, maxVal, arr):
 
 
 def scale(coordsIn, midIn):
-    #coordsIn[..., 0] *= -1
     return (coordsIn + midIn) / step
 
 
 def unscale(coordsIn, midIn):
     coordss = coordsIn * step - midIn
-    #coordss[..., 0] *= -1
     return coordss
 
 
 def scaleOld(coordsIn, midIn):
-    #coordsIn[0] *= -1
     return np.add(coordsIn, midIn)
 
 
@@ -197,7 +194,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         mapFloorLess = np.append(mapFloorLess, np.floor(scale(rot(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)  # X, 3
 
-        #xzRat = (dep.shape[1] / 2) / focalLen
+        # xzRat = (dep.shape[1] / 2) / focalLen
 
         angle = np.arctan2((dep.shape[1] / 2), focalLen)
 
@@ -268,14 +265,14 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         if pos[0] == 0 and pos[1] == 0:
             continue
 
-        #if verbose:
+        # if verbose:
         #   print(str(ind) + " / " + str(length))
 
         xyAngs = [0, 0, 0, 0]
         xyAngs[0] = np.arctan2(pos[1], pos[0])
-        xyAngs[1] = np.arctan2(pos[1]+1, pos[0]) #* (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
+        xyAngs[1] = np.arctan2(pos[1]+1, pos[0])  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
         xyAngs[2] = np.arctan2(pos[1], pos[0]+1)
-        xyAngs[3] = np.arctan2(pos[1]+1, pos[0]+1)#* (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
+        xyAngs[3] = np.arctan2(pos[1]+1, pos[0]+1)  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
 
         # yAngs = [0, 0, 0, 0, 0, 0, 0, 0]
         # yAngs[0] = np.arctan2(pos[0], np.sqrt(pos[1]**2 + pos[2]**2))
@@ -294,14 +291,12 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         # angleStepUp = (angleTop-angleBottom) / (10)
         angleStepSide = (angleLeft-angleRight) / 10
-        #angleStepSide = (angleLeft-angleRight)/2
 
         for dist in range(int(np.sqrt(pos[2]**2 + pos[1]**2 + pos[0]**2)), int(maxSize*1.5), objstep):
-        #for dist in range(int(np.sqrt(pos[0]**2 + pos[1]**2)), int(maxSize*1.5), objstep):
-            cont = False
+            # for dist in range(int(np.sqrt(pos[0]**2 + pos[1]**2)), int(maxSize*1.5), objstep):
             # for upDang in np.arange(angleBottom, angleTop, angleStepUp):
-            #for leftRang in np.arange(angleRight, angleLeft, angleStepSide):
-            for leftRang in [angleRight, angleLeft]:
+            # for leftRang in np.arange(angleRight, angleLeft, angleStepSide):
+            for leftRang in [angleRight, (angleRight+angleLeft)/2, angleLeft]:
 
                 # xx = dist * np.sin(upDang)
                 xx = dist * np.cos(leftRang)
@@ -310,12 +305,10 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
                 coords = scaleOld([xx, yy, zz], mid)
                 if fits(0, maxSize*2, coords):
-                    cont = True
                     # if floorheight+(maxCanOver/step) < coords[0]/step < floorheight+(minCanUnder/step) and \
                     #         obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
                     obsFlat[int(coords[0] / step), int(coords[1] / step)] = 1
-            # if not cont:
-            #     break
+
     end = time.time()
     print(end - start)
 

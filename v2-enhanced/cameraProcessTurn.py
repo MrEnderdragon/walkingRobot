@@ -142,7 +142,7 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
                                 verbose=True,
                                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
                                 robotWidth=robotWidth,
-                                ignoreDia=True, diaWeight=100, start=startCoords)
+                                ignoreDia=False, diaWeight=100, start=startCoords)
 
                 print("a* done")
 

@@ -24,7 +24,10 @@ if __name__ == "__main__":
     # rots = [0, np.deg2rad(90)]
     rots = []
 
-    for i in range(0, 3):
+    st = 3
+    en = 5
+
+    for i in range(st, en+1):
         # Constructing test image
         # imgId = "ROT-SPLR-" + str(i) + ".png"
         imgId = "16-" + str(i) + ".png"
@@ -36,13 +39,13 @@ if __name__ == "__main__":
         vDisps.append(vDisp)
         disps.append(disp)
         deps.append(dep)
-        rots.append(np.deg2rad(mapVal(0, 2, -45, 45, i)))
+        rots.append(np.deg2rad(mapVal(st, en, -45, 45, i)))
 
     shellFlat, obsFlat, walkFlat = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
     onPath, path, closestNode, voro, walkmap = \
-        aStar.aStar(shellFlat, obsFlat, walkFlat, (-shellFlat.shape[0] - 1, shellFlat.shape[1] - 1), verbose=True,
+        aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1), verbose=True,
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
-                    ignoreDia=True, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
+                    ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
     cv2.imshow("voro", (voro * 255/(400/50)).astype(np.uint8))
     cv2.imshow("path", (onPath * 255).astype(np.uint8))

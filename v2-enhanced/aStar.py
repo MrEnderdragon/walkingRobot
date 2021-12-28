@@ -73,7 +73,7 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     # cv2.imshow("canWalk", canWalk.astype(np.uint8)*255)
 
     walkMap = np.clip(canWalk.astype(np.int8) - obsNoDialate.astype(np.int8), 0, None).astype(np.bool_)
-    walkMapD = canWalk - obstacles
+    walkMapD = np.clip(canWalk.astype(np.int8) - obstacles.astype(np.int8), 0, None).astype(np.bool_)
 
     # cv2.imshow("walkmap", walkMap.astype(np.uint8)*255)
 
@@ -91,8 +91,8 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
 
     for row in range(rows):
         for col in range(cols):
-            if not walkMap[row,col]:
-                obsDist[row,col] = 0
+            if not walkMap[row, col]:
+                obsDist[row, col] = 0
                 continue
             index = voroFunc((row, col), unwalkCoords, arr=True)
             obsDist[row, col] = min(voroFunc((row, col), unwalkCoords[index]), voroMax / step)
@@ -146,7 +146,6 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     path = []
 
     cur = closestNode
-    # negOne = np.iinfo(np.uint32).max
 
     if verbose:
         end = time.time()
@@ -154,8 +153,6 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
         print("path start")
 
     while cur[0] != startCoords[0] or cur[1] != startCoords[1]:
-        # if verbose:
-            # print(cur)
         onPath[cur[0], cur[1]] = 1
         path.insert(0, cur)
         cur = nodeTo[cur[0], cur[1]]
