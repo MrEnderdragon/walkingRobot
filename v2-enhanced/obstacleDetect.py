@@ -1,5 +1,6 @@
 import hough
 import numpy as np
+import time
 
 focalLen = 441.25  # pixels
 ppmm = 1000/3  # pixels per mm, 1p = 3um
@@ -198,7 +199,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         #xzRat = (dep.shape[1] / 2) / focalLen
 
-        angle = np.arctan2(((dep.shape[1] - 0) / 2), focalLen)
+        angle = np.arctan2((dep.shape[1] / 2), focalLen)
 
         rows, cols = walkFlat.shape
         for row in range(rows):
@@ -255,6 +256,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     obsFlat = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.bool_)
 
+    start = time.time()
+
     if verbose:
         print("starting unknowns")
 
@@ -265,8 +268,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         if pos[0] == 0 and pos[1] == 0:
             continue
 
-        if verbose:
-            print(str(ind) + " / " + str(length))
+        #if verbose:
+        #   print(str(ind) + " / " + str(length))
 
         xyAngs = [0, 0, 0, 0]
         xyAngs[0] = np.arctan2(pos[1], pos[0])
@@ -291,11 +294,14 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         # angleStepUp = (angleTop-angleBottom) / (10)
         angleStepSide = (angleLeft-angleRight) / 10
+        #angleStepSide = (angleLeft-angleRight)/2
 
         for dist in range(int(np.sqrt(pos[2]**2 + pos[1]**2 + pos[0]**2)), int(maxSize*1.5), objstep):
+        #for dist in range(int(np.sqrt(pos[0]**2 + pos[1]**2)), int(maxSize*1.5), objstep):
             cont = False
             # for upDang in np.arange(angleBottom, angleTop, angleStepUp):
-            for leftRang in np.arange(angleRight, angleLeft, angleStepSide):
+            #for leftRang in np.arange(angleRight, angleLeft, angleStepSide):
+            for leftRang in [angleRight, angleLeft]:
 
                 # xx = dist * np.sin(upDang)
                 xx = dist * np.cos(leftRang)
@@ -310,6 +316,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
                     obsFlat[int(coords[0] / step), int(coords[1] / step)] = 1
             # if not cont:
             #     break
+    end = time.time()
+    print(end - start)
 
     shellFlat[shellx, shelly] = 1
 

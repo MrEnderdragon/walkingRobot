@@ -38,7 +38,7 @@ if __name__ == "__main__":
         deps.append(dep)
         rots.append(np.deg2rad(mapVal(0, 2, -45, 45, i)))
 
-    shellFlat, obsFlat, walkFlat = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, True)
+    shellFlat, obsFlat, walkFlat = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
     onPath, path, closestNode, voro, walkmap = \
         aStar.aStar(shellFlat, obsFlat, walkFlat, (-shellFlat.shape[0] - 1, shellFlat.shape[1] - 1), verbose=True,
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,

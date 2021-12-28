@@ -91,6 +91,9 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
 
     for row in range(rows):
         for col in range(cols):
+            if not walkMap[row,col]:
+                obsDist[row,col] = 0
+                continue
             index = voroFunc((row, col), unwalkCoords, arr=True)
             obsDist[row, col] = min(voroFunc((row, col), unwalkCoords[index]), voroMax / step)
 
