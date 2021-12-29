@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from queue import PriorityQueue
 import time
+from scipy.spatial.distance import cdist
 
 
 def manhattan(coord1, coord2, arr=False):
@@ -89,13 +90,20 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
 
     unwalkCoords = np.array(tuple(zip(*np.where(walkMap == 0))))
 
-    for row in range(rows):
-        for col in range(cols):
-            if not walkMap[row, col]:
-                obsDist[row, col] = 0
-                continue
-            index = voroFunc((row, col), unwalkCoords, arr=True)
-            obsDist[row, col] = min(voroFunc((row, col), unwalkCoords[index]), voroMax / step)
+    walkCoords = np.array(tuple(zip(*np.where(walkMap > 0))))
+    
+    aaa= np.min(cdist(walkCoords,unwalkCoords), axis=1)
+    for ind in range(walkCoords.shape[0]):
+        obsDist[walkCoords[ind][0], walkCoords[ind][1]] = min(aaa[ind], voroMax / step)
+    
+    
+    # for row in range(rows):
+    #     for col in range(cols):
+    #         if not walkMap[row, col]:
+    #             obsDist[row, col] = 0
+    #             continue
+    #         obsDist[row, col] = min(voroFunc((row, col), unwalkCoords, arr=True), voroMax / step)
+    #         #obsDist[row, col] = min(voroFunc((row, col), unwalkCoords[index]), voroMax / step)
 
     obsMax = np.max(obsDist)
 

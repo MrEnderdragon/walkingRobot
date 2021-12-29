@@ -1,6 +1,7 @@
 import hough
 import numpy as np
 import time
+import cv2
 
 focalLen = 441.25  # pixels
 ppmm = 1000/3  # pixels per mm, 1p = 3um
@@ -196,7 +197,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         # xzRat = (dep.shape[1] / 2) / focalLen
 
-        angle = np.arctan2((dep.shape[1] / 2), focalLen)
+        angle = np.arctan2(((dep.shape[1] -50) / 2), focalLen)
 
         rows, cols = walkFlat.shape
         for row in range(rows):
@@ -251,7 +252,9 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     shellUnsc = unscale(shellVox.T, mid)  # X by 3
     # shellUnsc = unscale(shellVox.T, mid).T  # 3 by X
 
-    obsFlat = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.bool_)
+    obsFlat = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.uint8)
+
+    #obsFlatB = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.bool_)
 
     start = time.time()
 
@@ -288,30 +291,42 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         angleLeft = np.max(xyAngs)
         # angleTop = np.max(yAngs)
         # angleBottom = np.min(yAngs)
+        
+        coords1 = scaleOld([pos[0], pos[1], 0], mid)
+        tSize = int(maxSize*1.5)
+        coords2 = scaleOld([tSize * np.cos(angleRight), tSize * np.sin(angleRight), 0], mid)
+        cv2.line(obsFlat, (int(coords1[1]/step), int(coords1[0]/step)), (int(coords2[1]/step), int(coords2[0]/step)), 100, 1)
+        
+        coords2 = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], mid)
+        cv2.line(obsFlat, (int(coords1[1]/step), int(coords1[0]/step)), (int(coords2[1]/step), int(coords2[0]/step)), 100, 1)
+        #cv2.line(obsFlat, (int(coords1[0]/step),int(maxSize*2/step-coords1[1]/step)), (int(coords2[0]/step),int(maxSize*2/step-coords2[1]/step)), 100, 1)
+        
+        #
+        # # angleStepUp = (angleTop-angleBottom) / (10)
+        # angleStepSide = (angleLeft-angleRight) / 10
+        #
+        # for dist in range(int(np.sqrt(pos[0]**2 + pos[1]**2)), int(maxSize*1.5), objstep):
+        #     # for dist in range(int(np.sqrt(pos[0]**2 + pos[1]**2)), int(maxSize*1.5), objstep):
+        #     # for upDang in np.arange(angleBottom, angleTop, angleStepUp):
+        #     # for leftRang in np.arange(angleRight, angleLeft, angleStepSide):
+        #     for leftRang in [angleRight, angleLeft]:
+        #
+        #         # xx = dist * np.sin(upDang)
+        #         xx = dist * np.cos(leftRang)
+        #         yy = dist * np.sin(leftRang)
+        #         zz = 0
+        #
+        #         coords = scaleOld([xx, yy, zz], mid)
+        #         if fits(0, maxSize*2, coords):
+        #             # if floorheight+(maxCanOver/step) < coords[0]/step < floorheight+(minCanUnder/step) and \
+        #             #         obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
+        #             obsFlatB[int(coords[0] / step), int(coords[1] / step)] = 1
 
-        # angleStepUp = (angleTop-angleBottom) / (10)
-        angleStepSide = (angleLeft-angleRight) / 10
-
-        for dist in range(int(np.sqrt(pos[2]**2 + pos[1]**2 + pos[0]**2)), int(maxSize*1.5), objstep):
-            # for dist in range(int(np.sqrt(pos[0]**2 + pos[1]**2)), int(maxSize*1.5), objstep):
-            # for upDang in np.arange(angleBottom, angleTop, angleStepUp):
-            # for leftRang in np.arange(angleRight, angleLeft, angleStepSide):
-            for leftRang in [angleRight, (angleRight+angleLeft)/2, angleLeft]:
-
-                # xx = dist * np.sin(upDang)
-                xx = dist * np.cos(leftRang)
-                yy = dist * np.sin(leftRang)
-                zz = 0
-
-                coords = scaleOld([xx, yy, zz], mid)
-                if fits(0, maxSize*2, coords):
-                    # if floorheight+(maxCanOver/step) < coords[0]/step < floorheight+(minCanUnder/step) and \
-                    #         obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
-                    obsFlat[int(coords[0] / step), int(coords[1] / step)] = 1
+    obsFlatB = obsFlat > 10
 
     end = time.time()
     print(end - start)
 
     shellFlat[shellx, shelly] = 1
 
-    return shellFlat, obsFlat, walkFlat
+    return shellFlat, obsFlatB, walkFlat

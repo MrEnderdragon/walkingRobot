@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     shellFlat, obsFlat, walkFlat = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
     onPath, path, closestNode, voro, walkmap = \
-        aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1), verbose=True,
+        aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 

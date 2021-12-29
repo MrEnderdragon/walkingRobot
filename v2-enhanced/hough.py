@@ -3,6 +3,7 @@ import cv2
 from skimage.transform import hough_line, hough_line_peaks
 import slic
 import math
+import time
 
 
 def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
@@ -93,18 +94,28 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
     floorMask = np.ones((disp.shape[0], disp.shape[1]), dtype=np.uint8)
 
     if verbose:
+        start = time.time()
         print("masking start")
 
     slope = np.tan(bestAng + np.pi / 2)
     (x0, y0) = bestDist * np.array([np.cos(bestAng), np.sin(bestAng)])
 
     rows, cols = disp.shape
-    for ii in range(rows):
-        thresh = ((ii - y0) / slope + x0) + (args["floorThresh"] if "floorThresh" in args else 10)
+    thresh = np.ndarray(shape=(rows, 1), dtype=float)
+    
+    thresh[...,0] = ((np.arange(0, rows) - y0) / slope + x0) + (args["floorThresh"] if "floorThresh" in args else 10)
+    # for ii in range(rows):
+    #     thresh[ii] = ((ii - y0) / slope + x0) + (args["floorThresh"] if "floorThresh" in args else 10)
+        
+    floorMask= dispScaled < thresh
 
-        for jj in range(cols):
-            floorMask[ii, ...] = dispScaled[ii, ...] < thresh
+        # for jj in range(cols):
+        #     floorMask[ii, ...] = dispScaled[ii, ...] < thresh
             # if dispScaled[ii, jj] < thresh:
             #     floorMask[ii, jj] = 0
+    if verbose:
+        end = time.time()
+        print(end-start)
+        print("masking end")
 
     return (bestAng, bestDist), disp, dispScaled, floorMask
