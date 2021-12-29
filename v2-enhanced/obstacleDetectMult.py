@@ -1,8 +1,9 @@
 import cv2
 import numpy as np
 import obstacleDetect
-import time
 import aStar
+# import time
+import curves
 
 
 robotWidth = 112.6/2+120
@@ -24,8 +25,8 @@ if __name__ == "__main__":
     # rots = [0, np.deg2rad(90)]
     rots = []
 
-    st = 3
-    en = 5
+    st = 6
+    en = 8
 
     for i in range(st, en+1):
         # Constructing test image
@@ -46,6 +47,76 @@ if __name__ == "__main__":
         aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
+
+    lastlast = None
+    last = None
+
+    points = []
+    curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
+
+    for ind, cur in enumerate(path):
+        curX = (cur[1] - shellFlat.shape[1] / 2) * 50
+        curY = -(cur[0] - shellFlat.shape[0] / 2) * 50
+
+        if ind == 0:
+            points.append((curX, curY))
+
+        if lastlast is not None and last is not None:
+            if last[0] != (curX + lastlast[0]) / 2 or last[1] != (curY + lastlast[1]) / 2:
+                points.append(last)
+
+        lastlast = last
+        last = (curX, curY)
+
+    if last is not None:
+        points.append(last)
+
+    newCurves = []
+
+    if len(points) > 2:
+        enddX = (points[0][0] + points[1][0]) / 2
+        enddY = (points[0][1] + points[1][1]) / 2
+        curv = curves.quadBezier(points[0], ((enddX + points[0][0]) / 2, (enddY + points[0][1]) / 2),
+                                 (enddX, enddY))
+        newCurves.append(curv)
+
+        for i in curv.renderPoints():
+            curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
+
+        for ind in range(1, len(points) - 1):
+            sttX = (points[ind - 1][0] + points[ind][0]) / 2
+            sttY = (points[ind - 1][1] + points[ind][1]) / 2
+            enddX = (points[ind + 1][0] + points[ind][0]) / 2
+            enddY = (points[ind + 1][1] + points[ind][1]) / 2
+            curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
+            for i in curv.renderPoints():
+                curvedpath[
+                    int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
+            newCurves.append(curv)
+
+        sttX = (points[len(points) - 2][0] + points[len(points) - 1][0]) / 2
+        sttY = (points[len(points) - 2][1] + points[len(points) - 1][1]) / 2
+        curv = curves.quadBezier((sttX, sttY),
+                                 ((sttX + points[len(points) - 1][0]) / 2,
+                                  (sttY + points[len(points) - 1][1]) / 2),
+                                 points[len(points) - 1])
+        newCurves.append(curv)
+
+        for i in curv.renderPoints():
+            curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
+
+    elif len(points) > 1:
+        curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
+                                             (points[1][1] + points[0][1]) / 2), points[1])
+        newCurves.append(curv)
+        for i in curv.renderPoints():
+            curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
+    else:
+        pass
+
+    print([[path[i][0], path[i][1]] for i in range(len(path))])
+    points2 = [(points[i][0], points[i][1]) for i in range(len(points))]
+    print(str(points2).replace("[", "(").replace("]", ")"))
 
     cv2.imshow("voro", (voro * 255/(400/50)).astype(np.uint8))
     cv2.imshow("path", (onPath * 255).astype(np.uint8))

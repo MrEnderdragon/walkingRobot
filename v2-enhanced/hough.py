@@ -91,10 +91,11 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
             bestAng = angle
             bestDist = dist
 
-    floorMask = np.ones((disp.shape[0], disp.shape[1]), dtype=np.uint8)
+    # floorMask = np.ones((disp.shape[0], disp.shape[1]), dtype=np.uint8)
+
+    start = time.time()
 
     if verbose:
-        start = time.time()
         print("masking start")
 
     slope = np.tan(bestAng + np.pi / 2)
@@ -103,16 +104,10 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
     rows, cols = disp.shape
     thresh = np.ndarray(shape=(rows, 1), dtype=float)
     
-    thresh[...,0] = ((np.arange(0, rows) - y0) / slope + x0) + (args["floorThresh"] if "floorThresh" in args else 10)
-    # for ii in range(rows):
-    #     thresh[ii] = ((ii - y0) / slope + x0) + (args["floorThresh"] if "floorThresh" in args else 10)
+    thresh[..., 0] = ((np.arange(0, rows) - y0) / slope + x0) + (args["floorThresh"] if "floorThresh" in args else 10)
         
-    floorMask= dispScaled < thresh
+    floorMask = dispScaled < thresh
 
-        # for jj in range(cols):
-        #     floorMask[ii, ...] = dispScaled[ii, ...] < thresh
-            # if dispScaled[ii, jj] < thresh:
-            #     floorMask[ii, jj] = 0
     if verbose:
         end = time.time()
         print(end-start)

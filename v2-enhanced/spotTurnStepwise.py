@@ -62,7 +62,8 @@ inX = 50
 inDist = math.sqrt(inX**2 + lineDist**2)
 inAng = math.atan2(inX, lineDist)
 
-order = [0, 2, 3, 1]  # order to take steps
+# order = [0, 2, 3, 1]  # order to take steps
+order = [0, 1, 3, 2]  # order to take steps
 
 # program variables V V V
 opposites = [3, 2, 1, 0]  # opposites of every leg
@@ -123,10 +124,15 @@ legPos = [[height / 2 + outX, width / 2 + turnLineDist],
 #           [-height / 2, -width / 2 - turnLineDist]]  # initial positions of legs (global)
 
 
-turnRelLeg = [[-inX, turnLineDist+lineDist, -turnHeight],
-              [outX, turnLineDist-lineDist, -turnHeight],
-              [-outX, turnLineDist-lineDist, -turnHeight],
-              [inX, turnLineDist+lineDist, -turnHeight]]
+# turnRelLeg = [[-inX, turnLineDist+lineDist, -turnHeight],
+#               [outX, turnLineDist-lineDist, -turnHeight],
+#               [-outX, turnLineDist-lineDist, -turnHeight],
+#               [inX, turnLineDist+lineDist, -turnHeight]]
+
+turnRelLeg = [[outX, turnLineDist-lineDist, -turnHeight],
+              [-inX, turnLineDist+lineDist, -turnHeight],
+              [inX, turnLineDist+lineDist, -turnHeight],
+              [-outX, turnLineDist-lineDist, -turnHeight]]
 
 
 refLeg = order[0]
@@ -191,17 +197,18 @@ class inst:
 def mainLoop():
     global lastMoved, cornerPoint, refFlag, lastFoundP, lastRelPos, refLeg
 
-    step = 15
+    step = -5
     stepRad = np.deg2rad(step)
-    amTurn = 360
+    amTurn = -45
 
     counter = 0
 
     while True:
-        for ii in range(0, amTurn, step):
+        for ii in np.arange(0, amTurn, step):
             moveLeg = order[counter % len(order)]
             counter = (counter+1)
             rot = np.deg2rad(counter*step)
+            print(rot)
 
             bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 

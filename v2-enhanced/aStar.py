@@ -51,7 +51,7 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
 
     distFunc = args["distFunc"] if "distFunc" in args else manhattan
     goalFunc = args["goalFunc"] if "goalFunc" in args else manhattan
-    voroFunc = args["voroFunc"] if "voroFunc" in args else manhattan
+    # voroFunc = args["voroFunc"] if "voroFunc" in args else manhattan
 
     voroWeight = args["voroWeight"] if "voroWeight" in args else 0.1
     voroMax = args["voroMax"] if "voroMax" in args else 400
@@ -92,18 +92,17 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
 
     walkCoords = np.array(tuple(zip(*np.where(walkMap > 0))))
     
-    aaa= np.min(cdist(walkCoords,unwalkCoords), axis=1)
+    dists = np.min(cdist(walkCoords, unwalkCoords), axis=1)
     for ind in range(walkCoords.shape[0]):
-        obsDist[walkCoords[ind][0], walkCoords[ind][1]] = min(aaa[ind], voroMax / step)
-    
-    
+        obsDist[walkCoords[ind][0], walkCoords[ind][1]] = min(dists[ind], voroMax / step)
+
     # for row in range(rows):
     #     for col in range(cols):
     #         if not walkMap[row, col]:
     #             obsDist[row, col] = 0
     #             continue
     #         obsDist[row, col] = min(voroFunc((row, col), unwalkCoords, arr=True), voroMax / step)
-    #         #obsDist[row, col] = min(voroFunc((row, col), unwalkCoords[index]), voroMax / step)
+    #         # obsDist[row, col] = min(voroFunc((row, col), unwalkCoords[index]), voroMax / step)
 
     obsMax = np.max(obsDist)
 

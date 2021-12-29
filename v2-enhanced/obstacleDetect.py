@@ -173,7 +173,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     shellFlat = np.zeros((int(maxSize*2 / step), int(maxSize*2 / step)), dtype=np.bool_)
     walkFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
 
-    dep = deps[0][0:360, ...]
+    # dep = deps[0][0:360, ...]
 
     for i in range(len(rots)):
         vDisp = vDisps[i][0:360, ...]
@@ -197,7 +197,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         # xzRat = (dep.shape[1] / 2) / focalLen
 
-        angle = np.arctan2(((dep.shape[1] -50) / 2), focalLen)
+        angle = np.arctan2(((dep.shape[1] - 50) / 2), focalLen)
 
         rows, cols = walkFlat.shape
         for row in range(rows):
@@ -245,8 +245,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         print(len(floorx))
         import mayavi.mlab
 
-        shell = mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
-        floor = mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
+        mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
+        mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
         mayavi.mlab.show()
 
     shellUnsc = unscale(shellVox.T, mid)  # X by 3
@@ -254,22 +254,15 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     obsFlat = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.uint8)
 
-    #obsFlatB = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.bool_)
-
     start = time.time()
 
     if verbose:
         print("starting unknowns")
 
-    length = shellUnsc.shape[0]
-
     for ind, pos in enumerate(shellUnsc):
 
         if pos[0] == 0 and pos[1] == 0:
             continue
-
-        # if verbose:
-        #   print(str(ind) + " / " + str(length))
 
         xyAngs = [0, 0, 0, 0]
         xyAngs[0] = np.arctan2(pos[1], pos[0])
@@ -277,20 +270,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         xyAngs[2] = np.arctan2(pos[1], pos[0]+1)
         xyAngs[3] = np.arctan2(pos[1]+1, pos[0]+1)  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
 
-        # yAngs = [0, 0, 0, 0, 0, 0, 0, 0]
-        # yAngs[0] = np.arctan2(pos[0], np.sqrt(pos[1]**2 + pos[2]**2))
-        # yAngs[1] = np.arctan2(pos[0], np.sqrt(pos[1]**2 + (pos[2]+1)**2))
-        # yAngs[2] = np.arctan2(pos[0], np.sqrt((pos[1]+1)**2 + pos[2]**2))
-        # yAngs[3] = np.arctan2(pos[0], np.sqrt((pos[1]+1)**2 + (pos[2]+1)**2))
-        # yAngs[4] = np.arctan2(pos[0]+1, np.sqrt(pos[1]**2 + pos[2]**2))
-        # yAngs[5] = np.arctan2(pos[0]+1, np.sqrt(pos[1]**2 + (pos[2]+1)**2))
-        # yAngs[6] = np.arctan2(pos[0]+1, np.sqrt((pos[1]+1)**2 + pos[2]**2))
-        # yAngs[7] = np.arctan2(pos[0]+1, np.sqrt((pos[1]+1)**2 + (pos[2]+1)**2))
-
         angleRight = np.min(xyAngs)
         angleLeft = np.max(xyAngs)
-        # angleTop = np.max(yAngs)
-        # angleBottom = np.min(yAngs)
         
         coords1 = scaleOld([pos[0], pos[1], 0], mid)
         tSize = int(maxSize*1.5)
@@ -299,28 +280,6 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         
         coords2 = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], mid)
         cv2.line(obsFlat, (int(coords1[1]/step), int(coords1[0]/step)), (int(coords2[1]/step), int(coords2[0]/step)), 100, 1)
-        #cv2.line(obsFlat, (int(coords1[0]/step),int(maxSize*2/step-coords1[1]/step)), (int(coords2[0]/step),int(maxSize*2/step-coords2[1]/step)), 100, 1)
-        
-        #
-        # # angleStepUp = (angleTop-angleBottom) / (10)
-        # angleStepSide = (angleLeft-angleRight) / 10
-        #
-        # for dist in range(int(np.sqrt(pos[0]**2 + pos[1]**2)), int(maxSize*1.5), objstep):
-        #     # for dist in range(int(np.sqrt(pos[0]**2 + pos[1]**2)), int(maxSize*1.5), objstep):
-        #     # for upDang in np.arange(angleBottom, angleTop, angleStepUp):
-        #     # for leftRang in np.arange(angleRight, angleLeft, angleStepSide):
-        #     for leftRang in [angleRight, angleLeft]:
-        #
-        #         # xx = dist * np.sin(upDang)
-        #         xx = dist * np.cos(leftRang)
-        #         yy = dist * np.sin(leftRang)
-        #         zz = 0
-        #
-        #         coords = scaleOld([xx, yy, zz], mid)
-        #         if fits(0, maxSize*2, coords):
-        #             # if floorheight+(maxCanOver/step) < coords[0]/step < floorheight+(minCanUnder/step) and \
-        #             #         obsFlat[int(coords[1] / step), int(coords[2] / step)] == 0:
-        #             obsFlatB[int(coords[0] / step), int(coords[1] / step)] = 1
 
     obsFlatB = obsFlat > 10
 

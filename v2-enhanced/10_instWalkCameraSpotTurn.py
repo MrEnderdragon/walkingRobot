@@ -50,25 +50,33 @@ tiltHeight = 10
 # height of turn line
 turnWalkHeight = 90
 # distance of steps from body
-turnLineDist = 120
+turnLineDist = 90
+turnOffsetDist = 40
 # how much to lift leg to step
 turnLiftHeight = 40
 # amount to tilt before stepping
 turnTiltHeight = 10
 
-turnStepDegs = 15
+turnStepDegs = 10
 
 # leg max outwards reach
 outX = 120
+turnOutX = 70
 outDist = math.sqrt(outX**2 + lineDist**2)
 outAng = math.atan2(outX, lineDist)
 # leg max inwards reach
 inX = 50
+turnInX = 50
 inDist = math.sqrt(inX**2 + lineDist**2)
 inAng = math.atan2(inX, lineDist)
 
 order = [0, 3, 1, 2]  # order to take steps
-turnOrder = [0, 3, 1, 2]  # order to take steps
+turnOrderPos = [0, 2, 3, 1]  # order to take steps
+turnOrderNeg = [0, 1, 3, 2]  # order to take steps
+
+# order = [0, 3, 1, 2]  # order to take steps
+# order = [0, 3, 1, 2]  # order to take steps
+
 
 # program variables V V V
 opposites = [3, 2, 1, 0]  # opposites of every leg
@@ -120,13 +128,18 @@ legPos = [[height / 2 - inX, width / 2 + lineDist],
 
 relStPos = [[- inX, lineDist],
             [+ outX - (outX + inX) * 1 / 3, lineDist],
-            [+ inX, width / 2 + lineDist],
+            [+ inX, lineDist],
             [- outX + (outX + inX) * 1 / 3, lineDist]]
 
-turnStPos = [[-inX, turnLineDist+lineDist],
-             [outX, turnLineDist-lineDist],
-             [-outX, turnLineDist-lineDist],
-             [inX, turnLineDist+lineDist]]
+turnStPos = [[-turnInX, turnLineDist+turnOffsetDist],
+             [turnOutX, turnLineDist-turnOffsetDist],
+             [-turnOutX, turnLineDist-turnOffsetDist],
+             [turnInX, turnLineDist+turnOffsetDist]]
+
+turnStNeg = [[turnOutX, turnLineDist-turnOffsetDist],
+             [-turnInX, turnLineDist+turnOffsetDist],
+             [turnInX, turnLineDist+turnOffsetDist],
+             [-turnOutX, turnLineDist-turnOffsetDist]]
 
 refLeg = order[0]
 refFlag = True
@@ -154,7 +167,7 @@ lr_check = True
 focalLen = 441.25*31.35
 baseline = 7.5*10
 
-camSleepTime = 30
+camSleepTime = 30000
 waitTime = 5
 
 # Create pipeline
@@ -231,11 +244,12 @@ def mainLoop(q, lock):
     #     moveLegs(calcRots(coords[i], i), i)
 
     dPoints = generate()
+    # dPoints = [[0, 0], np.deg2rad(-45)]
 
     bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
-    for ind in range(4):
-        bodyCorners[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
+    for leg in range(4):
+        bodyCorners[leg] = locToGlob(cornerPoint[leg], [0, 0], 0)
 
     lock.acquire()
     for j in range(4):
@@ -253,13 +267,42 @@ def mainLoop(q, lock):
         tmpRelPos = [[], [], [], []]
         for j in range(4):
             tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight)
-        stepLegs(tmpRelPos, turnStPos, walkHeight, turnWalkHeight)
-        spotTurn(np.rad2deg(dPoints[1]))
-        for j in range(4):
-            tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight)
-        stepLegs(tmpRelPos, relStPos, turnWalkHeight, walkHeight)
 
-    for posInd in range(0, min(len(dPoints)-50, 120), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
+        destPos = turnStPos if dPoints[1] > 0 else turnStNeg
+
+        lock.acquire()
+        stepLegs(tmpRelPos, destPos, walkHeight, turnWalkHeight)
+        lock.release()
+
+        for j in range(4):
+            legPos[j] = locToGlob((destPos[j][0], destPos[j][1] * ((-1) ** j)), bodyCorners[j], 0)
+
+        lock.acquire()
+        spotTurn(np.rad2deg(dPoints[1]))
+        lock.release()
+
+        for leg in range(4):
+            bodyCorners[leg] = locToGlob(cornerPoint[leg], [0, 0], dPoints[1])
+
+        tmpRelPos = [[], [], [], []]
+        for j in range(4):
+            tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], dPoints[1], j, -walkHeight)
+
+        destPos = relStPos
+
+        lock.acquire()
+        stepLegs(tmpRelPos, relStPos, turnWalkHeight, walkHeight)
+        lock.release()
+
+        for j in range(4):
+            legPos[j] = locToGlob((destPos[j][0], destPos[j][1] * ((-1) ** j)), bodyCorners[j], dPoints[1])
+
+        # print(legPos)
+
+    for posInd in range(0, min(len(dPoints)-50, 300000), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
+
+        # print(dPoints[posInd])
+        # input()
 
         if not q.empty():
             break
@@ -271,8 +314,8 @@ def mainLoop(q, lock):
 
         bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
-        for ind in range(4):
-            bodyCorners[ind] = locToGlob(cornerPoint[ind], [bodyX, bodyY], bodyAng)
+        for leg in range(4):
+            bodyCorners[leg] = locToGlob(cornerPoint[leg], [bodyX, bodyY], bodyAng)
 
         legMoved = -1
 
@@ -446,19 +489,18 @@ def mainLoop(q, lock):
             lastMoved = False
 
             lock.acquire()
+
             for leg in range(4):
                 execInst(inst(inst_type.abs, relLegPos[leg]), leg)
-            lock.release()
 
             time.sleep(stdDelay)
 
             if runRobot:
-                lock.acquire()
                 regMove.actAll(serial_connection)
-                lock.release()
+
+            lock.release()
 
             time.sleep(stdDelay)
-
             time.sleep(timePerCycle)
 
         if legMoved != -1:  # a leg has reached its time, move it
@@ -472,20 +514,15 @@ def mainLoop(q, lock):
                     execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight + tiltHeight]), leg)
                 else:
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
-            lock.release()
 
             time.sleep(stdDelay)
 
             if runRobot:
-                lock.acquire()
                 regMove.actAll(serial_connection)
-                lock.release()
 
             time.sleep(stdDelay)
-
             time.sleep(timePerCycle)
 
-            lock.acquire()
             for leg in range(4):  # stay and move lifting leg forwards
                 if leg == legMoved:
                     cornerCoords = bodyCorners[legMoved]
@@ -501,20 +538,38 @@ def mainLoop(q, lock):
                     execInst(inst(inst_type.abs, [relLegPos[leg][0], relLegPos[leg][1], -walkHeight + tiltHeight]), leg)
                 else:
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
-            lock.release()
 
             lastRelPos = relLegPos
 
             time.sleep(stdDelay)
 
             if runRobot:
-                lock.acquire()
                 regMove.actAll(serial_connection)
-                lock.release()
+
+            lock.release()
 
             time.sleep(stdDelay)
-
             time.sleep(timePerCycle)
+
+    if lastMoved:  # un-tilt
+        lock.acquire()
+        lastMoved = False
+
+        for leg in range(4):
+            execInst(inst(inst_type.abs, lastRelPos[leg]), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        lock.release()
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+
+    # if lock.locked():
+    #     lock.release()
 
 
 def stepLegs(curRelPos, newRelPos, curHeight, newHeight):
@@ -533,7 +588,11 @@ def stepLegs(curRelPos, newRelPos, curHeight, newHeight):
     time.sleep(stdDelay)
     time.sleep(timePerCycle)
 
-    for moveLeg in order:
+    output = turnOrderPos
+    for index, x in enumerate(sorted(range(len(newRelPos)), key=lambda y: -newRelPos[y][0] * (-1 if y > 1 else 1))):
+        output[index] = x
+
+    for moveLeg in output:
 
         for leg in range(4):  # move back and tilt
             if leg == moveLeg:
@@ -587,31 +646,35 @@ def stepLegs(curRelPos, newRelPos, curHeight, newHeight):
         time.sleep(stdDelay)
         time.sleep(timePerCycle)
 
-        for leg in range(4):
-            execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -newHeight]), leg)
+    for leg in range(4):
+        execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -newHeight]), leg)
 
-        time.sleep(stdDelay)
+    time.sleep(stdDelay)
 
-        if runRobot:
-            regMove.actAll(serial_connection)
+    if runRobot:
+        regMove.actAll(serial_connection)
 
-        time.sleep(stdDelay)
-        time.sleep(timePerCycle)
+    time.sleep(stdDelay)
+    time.sleep(timePerCycle)
 
 
 def spotTurn(degs):
     counter = 0
+    turnSt = turnStPos if degs > 0 else turnStNeg
+    turnOrder = turnOrderPos if degs > 0 else turnOrderNeg
 
-    for ii in np.arange(0, int(degs/turnStepDegs)+1, 1 if degs > 0 else -1):
-        moveLeg = order[counter % len(order)]
+    for _ in np.arange(0, int(degs/turnStepDegs)+(1 if degs > 0 else -1), 1 if degs > 0 else -1):
+        moveLeg = turnOrder[counter % len(order)]
         counter = (counter + 1)
-        rotDegs = (counter * turnStepDegs * 1 if degs > 0 else -1) if abs(counter * turnStepDegs) < abs(degs) else degs
+        rotDegs = (counter * turnStepDegs * (1 if degs > 0 else -1)) if abs(counter * turnStepDegs) < abs(degs) else degs
         rot = np.deg2rad(rotDegs)
+
+        print(rotDegs)
 
         bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
-        for ind in range(4):
-            bodyCorners[ind] = locToGlob(cornerPoint[ind], [0, 0], rot)
+        for leg in range(4):
+            bodyCorners[leg] = locToGlob(cornerPoint[leg], [0, 0], rot)
 
         for leg in range(4):  # move back and tilt
             if leg == moveLeg:
@@ -631,8 +694,8 @@ def spotTurn(degs):
 
         for leg in range(4):  # move leg forward
             if leg == moveLeg:
-                execInst(inst(inst_type.abs, (turnStPos[leg][0], turnStPos[leg][1], -turnWalkHeight + liftHeight)), leg)
-                legPos[leg] = locToGlob((turnStPos[leg][0], turnStPos[leg][1] * ((-1) ** leg)), bodyCorners[leg], rot)
+                execInst(inst(inst_type.abs, (turnSt[leg][0], turnSt[leg][1], -turnWalkHeight + liftHeight)), leg)
+                legPos[leg] = locToGlob((turnSt[leg][0], turnSt[leg][1] * ((-1) ** leg)), bodyCorners[leg], rot)
             elif leg == opposites[moveLeg]:
                 execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight + turnTiltHeight)), leg)
             else:
@@ -648,6 +711,8 @@ def spotTurn(degs):
 
         for j in range(4):
             execInst(inst(inst_type.abs, globToLoc(legPos[j], bodyCorners[j], rot, j, -turnWalkHeight)), j)
+
+        # print(legPos)
 
         time.sleep(stdDelay)
 
@@ -681,21 +746,10 @@ def findNext(dPoints, cornerCoord, bodyAng, leg):
         testAng = dPoints[toGo + 1]
 
         globLegTestPos = locToGlob(relPos, [testX, testY], testAng)
-        # locLegTestPos = globToLoc([testX, testY], relPos, testAng)  # find leg (test) pos relative to body corner
         testAng = (math.atan2(globLegTestPos[1]-cornerCoord[1], globLegTestPos[0]-cornerCoord[0]) + (2*PI)) % (2*PI)
-        # diffAng = abs(testAng-refAng)
         diffAng = (testAng-refAng) * ((-1) ** (leg+1))  # flip on legs 0 and 2
 
         testDist = dist(globLegTestPos, cornerCoord)
-
-        # if flag and testDist > front:
-        #     foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
-        #     print("found for leg " + str(leg))
-        #     break
-        #
-        # if (not flag) and testDist < back and testDist < front:
-        #     flag = True
-        #     print("flag set for leg " + str(leg))
 
         if flag and (diffAng > frontAng or testDist > max(front, back)):
             foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
@@ -857,6 +911,11 @@ if __name__ == "__main__":
         if lastRelPos is None:
             break
 
+        bodyCornersTmp = [[], [], [], []]
+
+        for ind in range(4):
+            bodyCornersTmp[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
+
         for i in range(4):
-            legPos[i] = locToGlob(lastRelPos[i], (0, 0), 0)
+            legPos[i] = locToGlob((lastRelPos[i][0], lastRelPos[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
         # coords = lastRelPos.copy()

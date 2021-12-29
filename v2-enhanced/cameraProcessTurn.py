@@ -55,6 +55,7 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
 
         while True:
             lock.acquire()
+            print("cam start")
 
             try:
                 vDisps = []
@@ -138,29 +139,38 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
                 startCoords = (int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2))
 
                 onPath, path, closestNode, voro, walkmap = \
-                    aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1),
+                    aStar.aStar(shellFlat, obsFlat, walkFlat, (0, shellFlat.shape[1] - 1),
                                 verbose=True,
                                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
                                 robotWidth=robotWidth,
                                 ignoreDia=False, diaWeight=100, start=startCoords)
+
+                # aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1),
 
                 print("a* done")
 
                 lastlast = None
                 last = None
 
-                points = [path[0]]
+                points = []
                 curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
 
                 for ind, cur in enumerate(path):
                     curX = (cur[1] - shellFlat.shape[1] / 2) * 50
                     curY = -(cur[0] - shellFlat.shape[0] / 2) * 50
+
+                    if ind == 0:
+                        points.append((curX, curY))
+
                     if lastlast is not None and last is not None:
                         if last[0] != (curX + lastlast[0]) / 2 or last[1] != (curY + lastlast[1]) / 2:
                             points.append(last)
 
                     lastlast = last
                     last = (curX, curY)
+
+                if last is not None:
+                    points.append(last)
 
                 print("points mapping done")
 
@@ -222,6 +232,7 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
             except ValueError:
                 print("ERRORED")
 
+            print("cam end")
             lock.release()
 
             time.sleep(camSleepTime)
