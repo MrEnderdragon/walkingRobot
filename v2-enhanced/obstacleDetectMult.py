@@ -4,6 +4,7 @@ import obstacleDetect
 import aStar
 # import time
 import curves
+import genPath
 
 
 robotWidth = 112.6/2+120
@@ -47,6 +48,8 @@ if __name__ == "__main__":
         aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
+
+    newCurves = genPath.gen_path((onPath * 255).astype(np.uint8))
 
     lastlast = None
     last = None
