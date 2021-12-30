@@ -172,8 +172,14 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     shellFlat = np.zeros((int(maxSize*2 / step), int(maxSize*2 / step)), dtype=np.bool_)
     walkFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
+    walkFlatI = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.uint8)
 
     # dep = deps[0][0:360, ...]
+
+    start = time.time()
+
+    if verbose:
+        print("starting detect")
 
     for i in range(len(rots)):
         vDisp = vDisps[i][0:360, ...]
@@ -198,16 +204,26 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         # xzRat = (dep.shape[1] / 2) / focalLen
 
         angle = np.arctan2(((dep.shape[1] - 50) / 2), focalLen)
-
         rows, cols = walkFlat.shape
-        for row in range(rows):
-            for col in range(cols):
-                rowNew = row - int(rows/2)
-                colNew = col - int(cols/2)
-                # if -xzRat * max(col, int(minSee / step)) + rows / 2 < row < xzRat * max(col, int(minSee / step)) + rows / 2:
-                if rots[i] - angle < np.arctan2(rowNew, colNew) < rots[i] + angle or np.sqrt(rowNew**2 + colNew**2) < minSee/step:
-                    walkFlat[row, col] = 1
+ 
+        
+        contours = np.array( [ [int(rows/2),int(cols/2)], 
+                              [int(rows/2) + rows * np.cos(rots[i] - angle ),int(cols/2) + cols * np.sin(rots[i] - angle )], 
+                              [int(rows/2) + rows * np.cos(rots[i] + angle ),int(cols/2) + rows * np.sin(rots[i] + angle )]], np.int32 )
 
+        
+        cv2.fillConvexPoly(walkFlatI, contours, color=100)
+        cv2.circle(walkFlatI, (int(rows/2),int(cols/2)), int(minSee / step), 100, -1)
+        # rows, cols = walkFlat.shape
+        # for row in range(rows):
+        #     for col in range(cols):
+        #         rowNew = row - int(rows/2)
+        #         colNew = col - int(cols/2)
+        #         # if -xzRat * max(col, int(minSee / step)) + rows / 2 < row < xzRat * max(col, int(minSee / step)) + rows / 2:
+        #         if rots[i] - angle < np.arctan2(rowNew, colNew) < rots[i] + angle or np.sqrt(rowNew**2 + colNew**2) < minSee/step:
+        #             walkFlat[row, col] = 1
+
+    walkFlat = walkFlatI > 10
     floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
                                    np.all(mapFloor < maxSize*2 / step, axis=1),
 
@@ -253,6 +269,12 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     # shellUnsc = unscale(shellVox.T, mid).T  # 3 by X
 
     obsFlat = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.uint8)
+    
+    if verbose:
+        end = time.time()
+        print(end-start)
+        print("done detect")
+    
 
     start = time.time()
 
