@@ -6,6 +6,7 @@ import time
 import UVdisp
 import obstacleDetect
 import aStar
+import genPath
 import RPi.GPIO as GPIO
 
 
@@ -139,84 +140,18 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
                 startCoords = (int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2))
 
                 onPath, path, closestNode, voro, walkmap = \
-                    aStar.aStar(shellFlat, obsFlat, walkFlat, (0, shellFlat.shape[1] - 1),
+                    aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1),
                                 verbose=True,
                                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
                                 robotWidth=robotWidth,
                                 ignoreDia=False, diaWeight=100, start=startCoords)
 
-                # aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1),
+                # aStar.aStar(shellFlat, obsFlat, walkFlat, (0, shellFlat.shape[1] - 1),
 
                 print("a* done")
 
-                lastlast = None
-                last = None
-
-                points = []
-                curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
-
-                for ind, cur in enumerate(path):
-                    curX = (cur[1] - shellFlat.shape[1] / 2) * 50
-                    curY = -(cur[0] - shellFlat.shape[0] / 2) * 50
-
-                    if ind == 0:
-                        points.append((curX, curY))
-
-                    if lastlast is not None and last is not None:
-                        if last[0] != (curX + lastlast[0]) / 2 or last[1] != (curY + lastlast[1]) / 2:
-                            points.append(last)
-
-                    lastlast = last
-                    last = (curX, curY)
-
-                if last is not None:
-                    points.append(last)
-
-                print("points mapping done")
-
-                newCurves = []
-
-                if len(points) > 2:
-                    enddX = (points[0][0] + points[1][0]) / 2
-                    enddY = (points[0][1] + points[1][1]) / 2
-                    curv = curves.quadBezier(points[0], ((enddX + points[0][0]) / 2, (enddY + points[0][1]) / 2),
-                                             (enddX, enddY))
-                    newCurves.append(curv)
-
-                    for i in curv.renderPoints():
-                        curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
-
-                    for ind in range(1, len(points) - 1):
-                        sttX = (points[ind - 1][0] + points[ind][0]) / 2
-                        sttY = (points[ind - 1][1] + points[ind][1]) / 2
-                        enddX = (points[ind + 1][0] + points[ind][0]) / 2
-                        enddY = (points[ind + 1][1] + points[ind][1]) / 2
-                        curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
-                        for i in curv.renderPoints():
-                            curvedpath[
-                                int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
-                        newCurves.append(curv)
-
-                    sttX = (points[len(points) - 2][0] + points[len(points) - 1][0]) / 2
-                    sttY = (points[len(points) - 2][1] + points[len(points) - 1][1]) / 2
-                    curv = curves.quadBezier((sttX, sttY),
-                                             ((sttX + points[len(points) - 1][0]) / 2,
-                                              (sttY + points[len(points) - 1][1]) / 2),
-                                             points[len(points) - 1])
-                    newCurves.append(curv)
-
-                    for i in curv.renderPoints():
-                        curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
-
-                elif len(points) > 1:
-                    curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
-                                                         (points[1][1] + points[0][1]) / 2), points[1])
-                    newCurves.append(curv)
-                    for i in curv.renderPoints():
-                        curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
-                else:
-                    pass
-                    # break
+                # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
+                newCurves, curvedpath = genPath.gen_path(path)
 
                 print("curve points done")
 

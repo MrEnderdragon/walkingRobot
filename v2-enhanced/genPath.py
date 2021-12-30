@@ -1,26 +1,55 @@
 import cv2
 import numpy as np
 import curves
-    
-driveAcc = 10  # accuracy of driving for curves (mm)
-    
+import rdp
+
+
 def gen_path(onPath):
-    
-    width = onPath.shape[0]
-    height = onPath.shape[1]
-    contours, hierarchy = cv2.findContours(onPath, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS)
-    
-    contour = contours[0]
-    
-    points = []
-    for ind in range(len(contour)):
-        if ind > 2:
-            if (contour[ind][0][0] == contour[ind-2][0][0]) and (contour[ind][0][1] == contour[ind-2][0][1]):
-                break
-        points.append( ((contour[ind][0][0] - width/2)*50, (contour[ind][0][1] - height/2)*50))
+    """
+    :param onPath: image for points on the path
+    :return: newCurves, curvedpath
+    """
+
+    # width = onPath.shape[0]
+    # height = onPath.shape[1]
+    # contours, _ = cv2.findContours(np.flip(onPath, axis=0), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS)
+    #
+    # contour = contours[0]
+    #
+    # # tmp = ""
+    #
+    # points = []
+    # for ind in range(len(contour)):
+    #     if ind > 2:
+    #         if (contour[ind][0][0] == contour[ind-2][0][0]) and (contour[ind][0][1] == contour[ind-2][0][1]):
+    #             break
+    #     points.append(((contour[ind][0][0] - width/2) * 50, (contour[ind][0][1] - height/2) * 50))
+    # tmp += "(" + str(contour[ind][0][0]) + "," + str(contour[ind][0][1]) + "),"
+
+    # print(points)
+    # print(tmp)
+
+    tmp = ""
+
+    width = 120
+    height = 120
+
+    mappedPoints = []
+
+    for cur in onPath:
+        curX = (cur[1] - height / 2) * 50
+        curY = -(cur[0] - width / 2) * 50
+
+        mappedPoints.append((curX, curY))
+
+        # tmp += "(" + str(points[ind][0]) + "," + str(points[ind][1]) + "),"
+
+    # print(tmp)
+
+    points = rdp.rdp(mappedPoints, 1)
 
     newCurves = []
-    curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
+    curvedpath = np.zeros((width+1, height+1), dtype=np.bool_)
 
     if len(points) > 2:
         enddX = (points[0][0] + points[1][0]) / 2
@@ -59,14 +88,19 @@ def gen_path(onPath):
             curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height/ 2)] = 1
     else:
         pass
-        # break
 
-    cv2.imshow("curvedpath", (curvedpath * 255).astype(np.uint8))
-    print("curve points done")
-    return newCurves
+    return newCurves, curvedpath
 
 
-def generate(driveCurves):
+def generate(driveCurves, **args):
+    """
+    :param driveCurves:
+    :param args: driveAcc: accuracy for curves (mm)
+    :return:
+    """
+
+    driveAcc = args["driveAcc"] if "driveAcc" in args else 10  # accuracy of driving for curves (mm)
+
     dirTmp = []
     curOver = 0
 

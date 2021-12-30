@@ -13,6 +13,7 @@ import cameraProcessTurn
 import copy
 # import curves
 import numpy as np
+import genPath
 # import cv2
 # import UVdisp
 # import obstacleDetect
@@ -167,7 +168,7 @@ lr_check = True
 focalLen = 441.25*31.35
 baseline = 7.5*10
 
-camSleepTime = 30000
+camSleepTime = 30
 waitTime = 5
 
 # Create pipeline
@@ -240,11 +241,7 @@ class inst:
 def mainLoop(q, lock):
     global lastMoved, cornerPoint, refFlag, lastFoundP, lastRelPos, refLeg
 
-    # for i in range(len(coords)):
-    #     moveLegs(calcRots(coords[i], i), i)
-
-    dPoints = generate()
-    # dPoints = [[0, 0], np.deg2rad(-45)]
+    dPoints = genPath.generate(driveCurves, driveAcc=driveAcc)
 
     bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
@@ -767,23 +764,6 @@ def findNext(dPoints, cornerCoord, bodyAng, leg):
     lastFoundP[leg] = foundInd
 
     return locToGlob(relPos, [foundX, foundY], foundAng)
-
-
-def generate():
-    dirTmp = []
-    curOver = 0
-
-    for pInd in range(len(driveCurves)):
-
-        curve = driveCurves[pInd]
-        pos, ang = curve.getPosDir(driveAcc, curOver)
-        curOver = (curOver + curve.getLength()) % driveAcc
-
-        for j in range(len(pos)):
-            dirTmp.append(pos[j])
-            dirTmp.append(ang[j])
-
-    return dirTmp
 
 
 def dist(xy1, xy2):

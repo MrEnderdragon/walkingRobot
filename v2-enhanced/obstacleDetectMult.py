@@ -49,81 +49,97 @@ if __name__ == "__main__":
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
-    newCurves = genPath.gen_path((onPath * 255).astype(np.uint8))
+    # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
+    newCurves, curvedpath = genPath.gen_path(path)
 
-    lastlast = None
-    last = None
+    tmp = ""
 
-    points = []
-    curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
+    for i in newCurves:
+        for p in i.renderPoints():
+            tmp += "(" + str(p[0]) + "," + str(p[1]) + "),"
 
-    for ind, cur in enumerate(path):
-        curX = (cur[1] - shellFlat.shape[1] / 2) * 50
-        curY = -(cur[0] - shellFlat.shape[0] / 2) * 50
+    print(tmp)
 
-        if ind == 0:
-            points.append((curX, curY))
+    # curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
+    #
+    # for curv in newCurves:
+    #     for i in curv.renderPoints():
+    #         curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
 
-        if lastlast is not None and last is not None:
-            if last[0] != (curX + lastlast[0]) / 2 or last[1] != (curY + lastlast[1]) / 2:
-                points.append(last)
-
-        lastlast = last
-        last = (curX, curY)
-
-    if last is not None:
-        points.append(last)
-
-    newCurves = []
-
-    if len(points) > 2:
-        enddX = (points[0][0] + points[1][0]) / 2
-        enddY = (points[0][1] + points[1][1]) / 2
-        curv = curves.quadBezier(points[0], ((enddX + points[0][0]) / 2, (enddY + points[0][1]) / 2),
-                                 (enddX, enddY))
-        newCurves.append(curv)
-
-        for i in curv.renderPoints():
-            curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
-
-        for ind in range(1, len(points) - 1):
-            sttX = (points[ind - 1][0] + points[ind][0]) / 2
-            sttY = (points[ind - 1][1] + points[ind][1]) / 2
-            enddX = (points[ind + 1][0] + points[ind][0]) / 2
-            enddY = (points[ind + 1][1] + points[ind][1]) / 2
-            curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
-            for i in curv.renderPoints():
-                curvedpath[
-                    int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
-            newCurves.append(curv)
-
-        sttX = (points[len(points) - 2][0] + points[len(points) - 1][0]) / 2
-        sttY = (points[len(points) - 2][1] + points[len(points) - 1][1]) / 2
-        curv = curves.quadBezier((sttX, sttY),
-                                 ((sttX + points[len(points) - 1][0]) / 2,
-                                  (sttY + points[len(points) - 1][1]) / 2),
-                                 points[len(points) - 1])
-        newCurves.append(curv)
-
-        for i in curv.renderPoints():
-            curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
-
-    elif len(points) > 1:
-        curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
-                                             (points[1][1] + points[0][1]) / 2), points[1])
-        newCurves.append(curv)
-        for i in curv.renderPoints():
-            curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
-    else:
-        pass
-
-    print([[path[i][0], path[i][1]] for i in range(len(path))])
-    points2 = [(points[i][0], points[i][1]) for i in range(len(points))]
-    print(str(points2).replace("[", "(").replace("]", ")"))
+    # lastlast = None
+    # last = None
+    #
+    # points = []
+    # curvedpath = np.zeros(onPath.shape, dtype=np.bool_)
+    #
+    # for ind, cur in enumerate(path):
+    #     curX = (cur[1] - shellFlat.shape[1] / 2) * 50
+    #     curY = -(cur[0] - shellFlat.shape[0] / 2) * 50
+    #
+    #     if ind == 0:
+    #         points.append((curX, curY))
+    #
+    #     if lastlast is not None and last is not None:
+    #         if last[0] != (curX + lastlast[0]) / 2 or last[1] != (curY + lastlast[1]) / 2:
+    #             points.append(last)
+    #
+    #     lastlast = last
+    #     last = (curX, curY)
+    #
+    # if last is not None:
+    #     points.append(last)
+    #
+    # newCurves = []
+    #
+    # if len(points) > 2:
+    #     enddX = (points[0][0] + points[1][0]) / 2
+    #     enddY = (points[0][1] + points[1][1]) / 2
+    #     curv = curves.quadBezier(points[0], ((enddX + points[0][0]) / 2, (enddY + points[0][1]) / 2),
+    #                              (enddX, enddY))
+    #     newCurves.append(curv)
+    #
+    #     for i in curv.renderPoints():
+    #         curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
+    #
+    #     for ind in range(1, len(points) - 1):
+    #         sttX = (points[ind - 1][0] + points[ind][0]) / 2
+    #         sttY = (points[ind - 1][1] + points[ind][1]) / 2
+    #         enddX = (points[ind + 1][0] + points[ind][0]) / 2
+    #         enddY = (points[ind + 1][1] + points[ind][1]) / 2
+    #         curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
+    #         for i in curv.renderPoints():
+    #             curvedpath[
+    #                 int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
+    #         newCurves.append(curv)
+    #
+    #     sttX = (points[len(points) - 2][0] + points[len(points) - 1][0]) / 2
+    #     sttY = (points[len(points) - 2][1] + points[len(points) - 1][1]) / 2
+    #     curv = curves.quadBezier((sttX, sttY),
+    #                              ((sttX + points[len(points) - 1][0]) / 2,
+    #                               (sttY + points[len(points) - 1][1]) / 2),
+    #                              points[len(points) - 1])
+    #     newCurves.append(curv)
+    #
+    #     for i in curv.renderPoints():
+    #         curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
+    #
+    # elif len(points) > 1:
+    #     curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
+    #                                          (points[1][1] + points[0][1]) / 2), points[1])
+    #     newCurves.append(curv)
+    #     for i in curv.renderPoints():
+    #         curvedpath[int(shellFlat.shape[0] / 2 - i[1] / 50), int(i[0] / 50 - shellFlat.shape[1] / 2)] = 1
+    # else:
+    #     pass
+    #
+    # print([[path[i][0], path[i][1]] for i in range(len(path))])
+    # points2 = [(points[i][0], points[i][1]) for i in range(len(points))]
+    # print(str(points2).replace("[", "(").replace("]", ")"))
 
     cv2.imshow("voro", (voro * 255/(400/50)).astype(np.uint8))
     cv2.imshow("path", (onPath * 255).astype(np.uint8))
     cv2.imshow("shell", (shellFlat*255).astype(np.uint8))
     cv2.imshow("obs", (obsFlat*255).astype(np.uint8))
     cv2.imshow("walk", (walkFlat*255).astype(np.uint8))
+    cv2.imshow("curvedpath", (curvedpath * 255).astype(np.uint8))
     cv2.waitKey()
