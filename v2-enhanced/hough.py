@@ -93,10 +93,10 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
 
     # floorMask = np.ones((disp.shape[0], disp.shape[1]), dtype=np.uint8)
 
-    # start = time.time()
-    #
-    # if verbose:
-    #     print("masking start")
+    start = time.time()
+
+    if verbose:
+        print("masking start")
 
     slope = np.tan(bestAng + np.pi / 2)
     (x0, y0) = bestDist * np.array([np.cos(bestAng), np.sin(bestAng)])
@@ -108,9 +108,9 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
         
     floorMask = dispScaled < thresh
 
-    # if verbose:
-    #     end = time.time()
-    #     print(end-start)
-    #     print("masking end")
+    if verbose:
+        end = time.time()
+        print(end-start)
+        print("masking end")
 
     return (bestAng, bestDist), disp, dispScaled, floorMask

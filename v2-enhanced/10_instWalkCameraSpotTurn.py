@@ -12,6 +12,8 @@ if runRobot:
 if runCamera:
     import depthai as dai
     import cameraProcessTurn
+else:
+    import obstacleDetectMult
 if drawRobot:
     import matplotlib.pyplot as plt
     
@@ -20,16 +22,16 @@ import copy
 # import curves
 import numpy as np
 import genPath
+
 # import cv2
 # import UVdisp
 # import obstacleDetect
 # import aStar
 PI = 3.1415
-import obstacleDetectMult
 
 # AX-12A motor connection
 if runRobot:
-    serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000, waiting_time=0.04)
+    serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000, waiting_time=0.08)
 
 lenA = 18.5  # length of shoulder motor1 to shoulder motor 2
 lenB = 83  # length of upper arm
@@ -168,8 +170,10 @@ lr_check = True
 focalLen = 441.25*31.35
 baseline = 7.5*10
 
-camSleepTime = 30
+camSleepTime = 60
 waitTime = 5
+
+pipeline = None
 
 if runCamera:
     # Create pipeline
@@ -282,14 +286,14 @@ def mainLoop(q, lock):
         destPos = turnStPos if dPoints[1] > 0 else turnStNeg
 
         if drawRobot:
-            pltRobot(dPoints,bodyCorners, 0, legPos)
+            pltRobot(dPoints, bodyCorners, 0, legPos)
 
         lock.acquire()
         stepLegs(tmpRelPos, destPos, walkHeight, turnWalkHeight)
         lock.release()
 
         if drawRobot:
-            pltRobot(dPoints,bodyCorners, 0, legPos)
+            pltRobot(dPoints, bodyCorners, 0, legPos)
 
         for j in range(4):
             legPos[j] = locToGlob((destPos[j][0], destPos[j][1] * ((-1) ** j)), bodyCorners[j], 0)
@@ -346,7 +350,7 @@ def mainLoop(q, lock):
         # ~~~~~~~~~~~~~~~~~~~~~~ REFLEG ~~~~~~~~~~~~~~~~~~~~~~
         for curLeg in range(0, 4):
             if moveCountdown[curLeg] == 0:
-                foundPos = findNext(dPoints, bodyCorners[curLeg], bodyAng, curLeg, True)
+                foundPos = findNext(dPoints, bodyCorners[curLeg], bodyAng, curLeg)
                 legMoved = curLeg
 
                 if (curLeg == 0 or curLeg == 1) and refLeg != curLeg:
@@ -461,7 +465,7 @@ def mainLoop(q, lock):
 
         if tmpDist > (inDist if refLeg <= 1 else outDist) and refFlag:  # test if reference leg is outside of its maximum range
             print("out of range")
-            foundPos = findNext(dPoints, bodyCorners[refLeg], bodyAng, refLeg, True)
+            foundPos = findNext(dPoints, bodyCorners[refLeg], bodyAng, refLeg)
 
             amTill = 0
             found = False
@@ -556,7 +560,7 @@ def mainLoop(q, lock):
                 else:
                     execInst(inst(inst_type.abs, relLegPos[leg]), leg)
 
-            lastRelPos = relLegPos
+            lastRelPos = copy.deepcopy(relLegPos)
 
             time.sleep(stdDelay)
 
@@ -569,7 +573,7 @@ def mainLoop(q, lock):
             time.sleep(timePerCycle)
             
             if drawRobot:
-                pltRobot(dPoints,bodyCorners, bodyAng, legPos)
+                pltRobot(dPoints, bodyCorners, bodyAng, legPos)
 
     if lastMoved:  # un-tilt
         lock.acquire()
@@ -743,7 +747,7 @@ def spotTurn(degs):
         time.sleep(timePerCycle)
 
 
-def findNext(dPoints, cornerCoord, bodyAng, leg, update = False):
+def findNext(dPoints, cornerCoord, bodyAng, leg):
     searchDist = (width / 2 + lineDist)
     relPos = [0, searchDist * ((-1) ** leg)]  # flip to right side (legs 1 and 3)
     refAng = (bodyAng + (0.5*PI if leg % 2 == 0 else 1.5*PI)) % (2*PI)
@@ -786,7 +790,6 @@ def findNext(dPoints, cornerCoord, bodyAng, leg, update = False):
     foundY = dPoints[foundInd][1]
     foundAng = dPoints[foundInd + 1]
 
-    #if update:
     lastFoundP[leg] = foundInd
 
     return locToGlob(relPos, [foundX, foundY], foundAng)
@@ -888,45 +891,44 @@ def globToLoc(glob_p, orig_p, orig_rot, flipY=0, zHeight=0):
 
 
 def pltRobot(dPoints, corners, angle, legs):
-    xPoints =[]
-    yPoints =[]
-    for ind in range(0, len(dPoints), 2):
-        xPoints.append(dPoints[ind][0])
-        yPoints.append(dPoints[ind][1])
+    xPoints = []
+    yPoints = []
+    for index in range(0, len(dPoints), 2):
+        xPoints.append(dPoints[index][0])
+        yPoints.append(dPoints[index][1])
 
     graph1.clear()
     graph1.axis([-500, 2000, -2000, 500])
     graph1.plot(xPoints, yPoints, 'r-')
     
-    xPoints =[]
-    yPoints =[]
+    xPoints = []
+    yPoints = []
 
     indList = [0, 1, 3, 2, 0]
     
-    for ind in indList:
-        xPoints.append(corners[ind][0])
-        yPoints.append(corners[ind][1])
+    for index in indList:
+        xPoints.append(corners[index][0])
+        yPoints.append(corners[index][1])
     
     graph1.plot(xPoints, yPoints, 'b-')
     
-    outPoints = [ [120, 120], [120, -120], [-120, 120], [-120, -120]]
-    for ind in range(4):
-        gp = locToGlob(outPoints[ind], corners[ind],  angle)
-        graph1.plot( [gp[0], corners[ind][0]], [gp[1], corners[ind][1]], 'y-')
+    outPoints = [[120, 120], [120, -120], [-120, 120], [-120, -120]]
+    for index in range(4):
+        gp = locToGlob(outPoints[index], corners[index],  angle)
+        graph1.plot([gp[0], corners[index][0]], [gp[1], corners[index][1]], 'y-')
 
+    inPoints = [[-50, 120], [-50, -120], [50, 120], [50, -120]]
+    for index in range(4):
+        gp = locToGlob(inPoints[index], corners[index],  angle)
+        graph1.plot([gp[0], corners[index][0]], [gp[1], corners[index][1]], 'y-')
     
-    inPoints = [ [-50, 120], [-50, -120], [50, 120], [50, -120]]
-    for ind in range(4):
-        gp = locToGlob(inPoints[ind], corners[ind],  angle)
-        graph1.plot( [gp[0], corners[ind][0]], [gp[1], corners[ind][1]], 'y-')
-    
-    for ind in range(4):
-        graph1.plot( [legs[ind][0], corners[ind][0]], [legs[ind][1], corners[ind][1]], 'b-')
+    for index in range(4):
+        graph1.plot([legs[index][0], corners[index][0]], [legs[index][1], corners[index][1]], 'b-')
         
     tmp = ""
     
-    for ind in range(4):
-        tmp += "(" + str(int(legs[ind][0])) + "," + str(int(legs[ind][1])) + ") "
+    for index in range(4):
+        tmp += "(" + str(int(legs[index][0])) + "," + str(int(legs[index][1])) + ") "
     
     print(tmp)
 
@@ -956,10 +958,9 @@ if __name__ == "__main__":
     
     if drawRobot:
         fig = plt.figure()
-        graph1 = fig.add_subplot(1,1,1)
+        graph1 = fig.add_subplot(1, 1, 1)
             
         graph1.axis([-500, 2000, -2000, 500])
-        
 
     while True:
         while qu.empty():

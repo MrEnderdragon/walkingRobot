@@ -3,7 +3,7 @@ import numpy as np
 import obstacleDetect
 import aStar
 # import time
-import curves
+# import curves
 import genPath
 import time
 
@@ -26,8 +26,8 @@ def processImages(verbose=False):
     # rots = [0, np.deg2rad(90)]
     rots = []
 
-    st = 6
-    en = 8
+    st = 9
+    en = 11
 
     for i in range(st, en+1):
         # Constructing test image
@@ -78,6 +78,7 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
         q.put(newCurves)
         time.sleep(camSleepTime)
         
+
 
 if __name__ == "__main__":    
     processImages(True)

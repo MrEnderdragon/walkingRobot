@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import curves
 import rdp
@@ -43,9 +42,7 @@ def gen_path(onPath):
 
         mappedPoints.append((curX, curY))
 
-
     points = rdp.rdp(mappedPoints, 100.0)
-
 
     for ind in range(len(points)):
         tmp += "(" + str(points[ind][0]) + "," + str(points[ind][1]) + "),"
@@ -82,14 +79,14 @@ def gen_path(onPath):
         newCurves.append(curv)
 
         for i in curv.renderPoints():
-            curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height/ 2)] = 1
+            curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
 
     elif len(points) > 1:
         curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
                                              (points[1][1] + points[0][1]) / 2), points[1])
         newCurves.append(curv)
         for i in curv.renderPoints():
-            curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height/ 2)] = 1
+            curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
     else:
         pass
 
@@ -98,7 +95,7 @@ def gen_path(onPath):
 
 def generate1(linePoints, **args):
     """
-    :param driveCurves:
+    :param linePoints:
     :param args: driveAcc: accuracy for curves (mm)
     :return:
     """
@@ -121,9 +118,9 @@ def generate1(linePoints, **args):
         size = math.sqrt((curP[1] - prevP[1])**2 + (curP[0] - prevP[0])**2)
         
         xinc = (curP[0] - prevP[0]) * driveAcc / size
-        yinc = (curP[1] - prevP[1]) * driveAcc/ size
+        yinc = (curP[1] - prevP[1]) * driveAcc / size
         for ind in range(int(size/driveAcc)):
-            dirTmp.append( (prevP[0]+  ind * xinc ,  prevP[1]+  ind * yinc ))
+            dirTmp.append((prevP[0] + ind * xinc, prevP[1] + ind * yinc))
             dirTmp.append(angle)
         
         prevP = curP
@@ -153,4 +150,3 @@ def generate(driveCurves, **args):
             dirTmp.append(ang[j])
 
     return dirTmp
-
