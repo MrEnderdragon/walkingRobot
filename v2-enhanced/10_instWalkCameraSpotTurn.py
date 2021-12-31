@@ -149,19 +149,12 @@ turnStNeg = [[turnOutX, turnLineDist-turnOffsetDist],
              [turnInX, turnLineDist+turnOffsetDist],
              [-turnOutX, turnLineDist-turnOffsetDist]]
 
-refLeg = order[0]
-refFlag = True
-
-lastMoved = False
 
 cornerPoint = [[height / 2, width / 2],
                [height / 2, -width / 2],
                [-height / 2, width / 2],
                [-height / 2, -width / 2]]
 
-moveCountdown = [-1, -1, -1, -1]
-
-lastFoundP = [0, 0, 0, 0]
 
 lastRelPos = legPos.copy()
 
@@ -216,7 +209,6 @@ if runCamera:
     
     depth.depth.link(outDisp.input)
     
-
 # Instruction types
 class inst_type(Enum):
     nul = 0  # do nothing
@@ -245,11 +237,25 @@ class inst:
         self.args = argsIn
 
 
+def initVariables():
+    global refLeg, refFlag, lastMoved, moveCountdown, lastFoundP
+    
+    refLeg = order[0]
+    refFlag = True
+    
+    lastMoved = False
+    
+    moveCountdown = [-1, -1, -1, -1]
+    
+    lastFoundP = [0, 0, 0, 0]
+
 # Main loop
 def mainLoop(q, lock):
     global lastMoved, cornerPoint, refFlag, lastFoundP, lastRelPos, refLeg
 
     dPoints = genPath.generate(driveCurves, driveAcc=driveAcc)
+
+    initVariables()
 
     bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
@@ -742,6 +748,7 @@ def findNext(dPoints, cornerCoord, bodyAng, leg, update = False):
     relPos = [0, searchDist * ((-1) ** leg)]  # flip to right side (legs 1 and 3)
     refAng = (bodyAng + (0.5*PI if leg % 2 == 0 else 1.5*PI)) % (2*PI)
 
+
     back = inDist if leg <= 1 else outDist
     front = outDist if leg <= 1 else inDist
 
@@ -765,6 +772,7 @@ def findNext(dPoints, cornerCoord, bodyAng, leg, update = False):
 
         testDist = dist(globLegTestPos, cornerCoord)
 
+        #if (diffAng > frontAng)  or (diffAng > PI) or testDist > max(front, back):
         if flag and (diffAng > frontAng or testDist > max(front, back)):
             foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
             print("found for leg " + str(leg) + " " + str(lastFoundP[leg]) + " " + str(foundInd))
@@ -923,7 +931,8 @@ def pltRobot(dPoints, corners, angle, legs):
     print(tmp)
 
     fig.canvas.draw()
-    plt.waitforbuttonpress()
+    #plt.waitforbuttonpress()
+    plt.pause(0.02)
     
 
 # program start
@@ -967,12 +976,11 @@ if __name__ == "__main__":
 
         if lastRelPos is None:
             break
-
+        
         bodyCornersTmp = [[], [], [], []]
-
         for ind in range(4):
             bodyCornersTmp[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
-
+            
         for i in range(4):
             legPos[i] = locToGlob((lastRelPos[i][0], lastRelPos[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
-        # coords = lastRelPos.copy()
+

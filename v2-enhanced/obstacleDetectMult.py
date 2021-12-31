@@ -5,6 +5,7 @@ import aStar
 # import time
 import curves
 import genPath
+import time
 
 
 robotWidth = 112.6/2+120
@@ -72,8 +73,11 @@ def processImages(verbose=False):
 
 
 def takeImage(q, lock, pipeline, camSleepTime, **args):
-    newCurves = processImages(False)
-    q.put(newCurves)
+    while True:
+        newCurves = processImages(False)
+        q.put(newCurves)
+        time.sleep(camSleepTime)
+        
 
 if __name__ == "__main__":    
     processImages(True)
