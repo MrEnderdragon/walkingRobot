@@ -19,15 +19,15 @@ def mapVal(inSt, inEn, outSt, outEn, val):
     return (val-inSt)/(inEn-inSt) * (outEn-outSt) + outSt
 
 
-def processImages(verbose=False):
+def processImages(start, end, verbose=False):
     vDisps = []
     disps = []
     deps = []
     # rots = [0, np.deg2rad(90)]
     rots = []
 
-    st = 9
-    en = 11
+    st = start
+    en = end
 
     for i in range(st, en+1):
         # Constructing test image
@@ -43,14 +43,19 @@ def processImages(verbose=False):
         deps.append(dep)
         rots.append(np.deg2rad(mapVal(st, en, -45, 45, i)))
 
-    shellFlat, obsFlat, walkFlat = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
+    start = time.time()
+    shellFlat, obsFlat, walkFlat, unwalkCoords = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
     onPath, path, closestNode, voro, walkmap = \
-        aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
+        aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
     # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
     newCurves, curvedpath = genPath.gen_path(path)
+    
+    end = time.time()
+    print("overall")
+    print(end-start)
 
     tmp = ""
     
@@ -74,12 +79,13 @@ def processImages(verbose=False):
 
 def takeImage(q, lock, pipeline, camSleepTime, **args):
     while True:
-        newCurves = processImages(False)
+        newCurves = processImages(6,8, False)
         q.put(newCurves)
         time.sleep(camSleepTime)
         
 
 
 if __name__ == "__main__":    
-    processImages(True)
+    for ind in range(3):
+        newCurves = processImages(ind*3, ind*3+2, True)
 
