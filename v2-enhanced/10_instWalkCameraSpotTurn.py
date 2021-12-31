@@ -1,5 +1,7 @@
 import os
-runRobot = int(os.environ['RUN_ROBOT']) > 0
+runRobot = int(os.environ.get('RUN_ROBOT', '0')) > 0
+runCamera = int(os.environ.get('RUN_CAMERA', '0')) > 0
+drawRobot = int(os.environ.get('DRAW_ROBOT', '0')) > 0
 
 import math
 import time
@@ -7,9 +9,13 @@ from multiprocessing import Process, Queue, Lock
 if runRobot:
     from pyax12.connection import Connection
     import regMove
+if runCamera:
+    import depthai as dai
+    import cameraProcessTurn
+if drawRobot:
+    import matplotlib.pyplot as plt
+    
 from enum import Enum
-import depthai as dai
-import cameraProcessTurn
 import copy
 # import curves
 import numpy as np
@@ -19,10 +25,11 @@ import genPath
 # import obstacleDetect
 # import aStar
 PI = 3.1415
+import obstacleDetectMult
 
 # AX-12A motor connection
 if runRobot:
-    serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000)
+    serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000, waiting_time=0.04)
 
 lenA = 18.5  # length of shoulder motor1 to shoulder motor 2
 lenB = 83  # length of upper arm
@@ -171,43 +178,44 @@ baseline = 7.5*10
 camSleepTime = 30
 waitTime = 5
 
-# Create pipeline
-pipeline = dai.Pipeline()
+if runCamera:
+    # Create pipeline
+    pipeline = dai.Pipeline()
+    
+    # Define sources and outputs
+    monoLeft = pipeline.createMonoCamera()
+    monoRight = pipeline.createMonoCamera()
+    
+    depth = pipeline.createStereoDepth()
+    
+    outDisp = pipeline.createXLinkOut()
+    outDisp.setStreamName("depOut")
+    
+    outR = pipeline.createXLinkOut()
+    outR.setStreamName("outR")
 
-# Define sources and outputs
-monoLeft = pipeline.createMonoCamera()
-monoRight = pipeline.createMonoCamera()
+    # Properties
+    monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+    monoLeft.setBoardSocket(dai.CameraBoardSocket.LEFT)
+    monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+    monoRight.setBoardSocket(dai.CameraBoardSocket.RIGHT)
 
-depth = pipeline.createStereoDepth()
+    # Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
+    depth.initialConfig.setConfidenceThreshold(200)
+    # Options: MEDIAN_OFF, KERNEL_3x3, KERNEL_5x5, KERNEL_7x7 (default)
+    depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
+    depth.setLeftRightCheck(subpixel)
+    depth.setExtendedDisparity(extended_disparity)
+    depth.setSubpixel(lr_check)
 
-outDisp = pipeline.createXLinkOut()
-outDisp.setStreamName("depOut")
-
-outR = pipeline.createXLinkOut()
-outR.setStreamName("outR")
-
-# Properties
-monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-monoLeft.setBoardSocket(dai.CameraBoardSocket.LEFT)
-monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-monoRight.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-
-# Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
-depth.initialConfig.setConfidenceThreshold(200)
-# Options: MEDIAN_OFF, KERNEL_3x3, KERNEL_5x5, KERNEL_7x7 (default)
-depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
-depth.setLeftRightCheck(subpixel)
-depth.setExtendedDisparity(extended_disparity)
-depth.setSubpixel(lr_check)
-
-# Linking
-monoLeft.out.link(depth.left)
-monoRight.out.link(depth.right)
-
-monoRight.out.link(outR.input)
-
-depth.depth.link(outDisp.input)
-
+    # Linking
+    monoLeft.out.link(depth.left)
+    monoRight.out.link(depth.right)
+    
+    monoRight.out.link(outR.input)
+    
+    depth.depth.link(outDisp.input)
+    
 
 # Instruction types
 class inst_type(Enum):
@@ -267,9 +275,15 @@ def mainLoop(q, lock):
 
         destPos = turnStPos if dPoints[1] > 0 else turnStNeg
 
+        if drawRobot:
+            pltRobot(dPoints,bodyCorners, 0, legPos)
+
         lock.acquire()
         stepLegs(tmpRelPos, destPos, walkHeight, turnWalkHeight)
         lock.release()
+
+        if drawRobot:
+            pltRobot(dPoints,bodyCorners, 0, legPos)
 
         for j in range(4):
             legPos[j] = locToGlob((destPos[j][0], destPos[j][1] * ((-1) ** j)), bodyCorners[j], 0)
@@ -326,7 +340,7 @@ def mainLoop(q, lock):
         # ~~~~~~~~~~~~~~~~~~~~~~ REFLEG ~~~~~~~~~~~~~~~~~~~~~~
         for curLeg in range(0, 4):
             if moveCountdown[curLeg] == 0:
-                foundPos = findNext(dPoints, bodyCorners[curLeg], bodyAng, curLeg)
+                foundPos = findNext(dPoints, bodyCorners[curLeg], bodyAng, curLeg, True)
                 legMoved = curLeg
 
                 if (curLeg == 0 or curLeg == 1) and refLeg != curLeg:
@@ -441,7 +455,7 @@ def mainLoop(q, lock):
 
         if tmpDist > (inDist if refLeg <= 1 else outDist) and refFlag:  # test if reference leg is outside of its maximum range
             print("out of range")
-            foundPos = findNext(dPoints, bodyCorners[refLeg], bodyAng, refLeg)
+            foundPos = findNext(dPoints, bodyCorners[refLeg], bodyAng, refLeg, True)
 
             amTill = 0
             found = False
@@ -547,6 +561,9 @@ def mainLoop(q, lock):
 
             time.sleep(stdDelay)
             time.sleep(timePerCycle)
+            
+            if drawRobot:
+                pltRobot(dPoints,bodyCorners, bodyAng, legPos)
 
     if lastMoved:  # un-tilt
         lock.acquire()
@@ -720,7 +737,7 @@ def spotTurn(degs):
         time.sleep(timePerCycle)
 
 
-def findNext(dPoints, cornerCoord, bodyAng, leg):
+def findNext(dPoints, cornerCoord, bodyAng, leg, update = False):
     searchDist = (width / 2 + lineDist)
     relPos = [0, searchDist * ((-1) ** leg)]  # flip to right side (legs 1 and 3)
     refAng = (bodyAng + (0.5*PI if leg % 2 == 0 else 1.5*PI)) % (2*PI)
@@ -750,17 +767,18 @@ def findNext(dPoints, cornerCoord, bodyAng, leg):
 
         if flag and (diffAng > frontAng or testDist > max(front, back)):
             foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
-            print("found for leg " + str(leg))
+            print("found for leg " + str(leg) + " " + str(lastFoundP[leg]) + " " + str(foundInd))
             break
 
         if (not flag) and abs(diffAng) < min(backAng, frontAng) and testDist < max(front, back):
             flag = True
-            print("flag set for leg " + str(leg))
+            print("flag set for leg " + str(leg) + " " + str(lastFoundP[leg]) + " " + str(toGo))
 
     foundX = dPoints[foundInd][0]
     foundY = dPoints[foundInd][1]
     foundAng = dPoints[foundInd + 1]
 
+    #if update:
     lastFoundP[leg] = foundInd
 
     return locToGlob(relPos, [foundX, foundY], foundAng)
@@ -861,6 +879,53 @@ def globToLoc(glob_p, orig_p, orig_rot, flipY=0, zHeight=0):
     return [cosAm * rel_x - sinAm * rel_y, (sinAm * rel_x + cosAm * rel_y) * ((-1) ** flipY), zHeight]
 
 
+def pltRobot(dPoints, corners, angle, legs):
+    xPoints =[]
+    yPoints =[]
+    for ind in range(0, len(dPoints), 2):
+        xPoints.append(dPoints[ind][0])
+        yPoints.append(dPoints[ind][1])
+
+    graph1.clear()
+    graph1.axis([-500, 2000, -2000, 500])
+    graph1.plot(xPoints, yPoints, 'r-')
+    
+    xPoints =[]
+    yPoints =[]
+
+    indList = [0, 1, 3, 2, 0]
+    
+    for ind in indList:
+        xPoints.append(corners[ind][0])
+        yPoints.append(corners[ind][1])
+    
+    graph1.plot(xPoints, yPoints, 'b-')
+    
+    outPoints = [ [120, 120], [120, -120], [-120, 120], [-120, -120]]
+    for ind in range(4):
+        gp = locToGlob(outPoints[ind], corners[ind],  angle)
+        graph1.plot( [gp[0], corners[ind][0]], [gp[1], corners[ind][1]], 'y-')
+
+    
+    inPoints = [ [-50, 120], [-50, -120], [50, 120], [50, -120]]
+    for ind in range(4):
+        gp = locToGlob(inPoints[ind], corners[ind],  angle)
+        graph1.plot( [gp[0], corners[ind][0]], [gp[1], corners[ind][1]], 'y-')
+    
+    for ind in range(4):
+        graph1.plot( [legs[ind][0], corners[ind][0]], [legs[ind][1], corners[ind][1]], 'b-')
+        
+    tmp = ""
+    
+    for ind in range(4):
+        tmp += "(" + str(int(legs[ind][0])) + "," + str(int(legs[ind][1])) + ") "
+    
+    print(tmp)
+
+    fig.canvas.draw()
+    plt.waitforbuttonpress()
+    
+
 # program start
 if __name__ == "__main__":
 
@@ -869,11 +934,23 @@ if __name__ == "__main__":
 
     mainLoop(qu, ll)
 
-    p = Process(target=cameraProcessTurn.takeImage, args=(qu, ll, pipeline, camSleepTime),
-                kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
-                daemon=True)
+    if runCamera:
+        p = Process(target=cameraProcessTurn.takeImage, args=(qu, ll, pipeline, camSleepTime),
+                    kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
+                    daemon=True)
+    else:
+        p = Process(target=obstacleDetectMult.takeImage, args=(qu, ll, None, camSleepTime),
+                    kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
+                    daemon=True)
 
     p.start()
+    
+    if drawRobot:
+        fig = plt.figure()
+        graph1 = fig.add_subplot(1,1,1)
+            
+        graph1.axis([-500, 2000, -2000, 500])
+        
 
     while True:
         while qu.empty():

@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import curves
 import rdp
+import math
 
 
 def gen_path(onPath):
@@ -42,15 +43,18 @@ def gen_path(onPath):
 
         mappedPoints.append((curX, curY))
 
-        # tmp += "(" + str(points[ind][0]) + "," + str(points[ind][1]) + "),"
 
-    # print(tmp)
+    points = rdp.rdp(mappedPoints, 100.0)
 
-    points = rdp.rdp(mappedPoints, 1)
 
+    for ind in range(len(points)):
+        tmp += "(" + str(points[ind][0]) + "," + str(points[ind][1]) + "),"
+    
+    print(tmp)
+    
     newCurves = []
     curvedpath = np.zeros((width+1, height+1), dtype=np.bool_)
-
+    
     if len(points) > 2:
         enddX = (points[0][0] + points[1][0]) / 2
         enddY = (points[0][1] + points[1][1]) / 2
@@ -90,6 +94,40 @@ def gen_path(onPath):
         pass
 
     return newCurves, curvedpath
+
+
+def generate1(linePoints, **args):
+    """
+    :param driveCurves:
+    :param args: driveAcc: accuracy for curves (mm)
+    :return:
+    """
+
+    driveAcc = args["driveAcc"] if "driveAcc" in args else 10  # accuracy of driving for curves (mm)
+
+    dirTmp = []
+    
+    if len(linePoints) < 2:
+        return dirTmp
+
+    prevP = linePoints[0]
+    for pInd in range(1, len(linePoints)):
+        curP = linePoints[pInd]
+
+        angle = math.atan2((curP[1] - prevP[1]), (curP[0] - prevP[0]))
+        dirTmp.append(prevP)
+        dirTmp.append(angle)
+        
+        size = math.sqrt((curP[1] - prevP[1])**2 + (curP[0] - prevP[0])**2)
+        
+        xinc = (curP[0] - prevP[0]) * driveAcc / size
+        yinc = (curP[1] - prevP[1]) * driveAcc/ size
+        for ind in range(int(size/driveAcc)):
+            dirTmp.append( (prevP[0]+  ind * xinc ,  prevP[1]+  ind * yinc ))
+            dirTmp.append(angle)
+        
+        prevP = curP
+    return dirTmp
 
 
 def generate(driveCurves, **args):

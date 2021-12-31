@@ -2,6 +2,7 @@ import hough
 import numpy as np
 import time
 import cv2
+import os
 
 focalLen = 441.25  # pixels
 ppmm = 1000/3  # pixels per mm, 1p = 3um
@@ -21,6 +22,13 @@ thresh = 35
 
 maxCanOver = 50  # mm
 minCanUnder = 400
+
+walkFlatDone = False
+if os.path.isfile('./robot_walk.npy'):
+    with open('./robot_walk.npy', 'rb') as f:
+        walkFlat = np.load(f)
+        walkFlatDone = True
+
 
 
 def mapArr(xs, ys, depth):
@@ -164,6 +172,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         :param args: floorThresh
         :return: shellFlat, obsFlat, walkFlat
     """
+    global walkFlat
+    global walkFlatDone
 
     floorThresh = args["floorThresh"] if "floorThresh" in args else 0.5
 
@@ -171,8 +181,10 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     mapFloor = np.zeros((0, 3), dtype=int)
 
     shellFlat = np.zeros((int(maxSize*2 / step), int(maxSize*2 / step)), dtype=np.bool_)
-    walkFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
-    walkFlatI = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.uint8)
+    if not walkFlatDone:
+        walkFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
+        walkFlatDone = False
+        walkFlatI = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.uint8)
 
     # dep = deps[0][0:360, ...]
 
@@ -180,6 +192,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     if verbose:
         print("starting detect")
+        
 
     for i in range(len(rots)):
         vDisp = vDisps[i][0:360, ...]
@@ -202,34 +215,37 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         mapFloorLess = np.append(mapFloorLess, np.floor(scale(rot(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)  # X, 3
 
         # xzRat = (dep.shape[1] / 2) / focalLen
+        if not walkFlatDone:
+            angle = np.arctan2(((dep.shape[1] - 50) / 2), focalLen)
+            rows, cols = walkFlat.shape
+            contours = np.array( [ [int(rows/2),int(cols/2)], 
+                                  [int(rows/2) + rows * np.cos(rots[i] - angle ),int(cols/2) + cols * np.sin(rots[i] - angle )], 
+                                  [int(rows/2) + rows * np.cos(rots[i] + angle ),int(cols/2) + rows * np.sin(rots[i] + angle )]], np.int32 )
+    
+            
+            cv2.fillConvexPoly(walkFlatI, contours, color=100)
+            cv2.circle(walkFlatI, (int(rows/2),int(cols/2)), int(minSee / step), 100, -1)
+            # rows, cols = walkFlat.shape
+            # for row in range(rows):
+            #     for col in range(cols):
+            #         rowNew = row - int(rows/2)
+            #         colNew = col - int(cols/2)
+            #         # if -xzRat * max(col, int(minSee / step)) + rows / 2 < row < xzRat * max(col, int(minSee / step)) + rows / 2:
+            #         if rots[i] - angle < np.arctan2(rowNew, colNew) < rots[i] + angle or np.sqrt(rowNew**2 + colNew**2) < minSee/step:
+            #             walkFlat[row, col] = 1
 
-        angle = np.arctan2(((dep.shape[1] - 50) / 2), focalLen)
-        rows, cols = walkFlat.shape
- 
+    if not walkFlatDone:
+        walkFlat = walkFlatI > 10
+        with open('./robot_walk.npy', 'wb') as f:
+            np.save(f, walkFlat)
+            walkFlatDone = True
         
-        contours = np.array( [ [int(rows/2),int(cols/2)], 
-                              [int(rows/2) + rows * np.cos(rots[i] - angle ),int(cols/2) + cols * np.sin(rots[i] - angle )], 
-                              [int(rows/2) + rows * np.cos(rots[i] + angle ),int(cols/2) + rows * np.sin(rots[i] + angle )]], np.int32 )
-
-        
-        cv2.fillConvexPoly(walkFlatI, contours, color=100)
-        cv2.circle(walkFlatI, (int(rows/2),int(cols/2)), int(minSee / step), 100, -1)
-        # rows, cols = walkFlat.shape
-        # for row in range(rows):
-        #     for col in range(cols):
-        #         rowNew = row - int(rows/2)
-        #         colNew = col - int(cols/2)
-        #         # if -xzRat * max(col, int(minSee / step)) + rows / 2 < row < xzRat * max(col, int(minSee / step)) + rows / 2:
-        #         if rots[i] - angle < np.arctan2(rowNew, colNew) < rots[i] + angle or np.sqrt(rowNew**2 + colNew**2) < minSee/step:
-        #             walkFlat[row, col] = 1
-
-    walkFlat = walkFlatI > 10
     floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
-                                   np.all(mapFloor < maxSize*2 / step, axis=1),
-
-                                   (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
-                                            (mapFloor[:, 1] - mid[1] / step) ** 2 +
-                                            (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
+                                    np.all(mapFloor < maxSize*2 / step, axis=1),
+                                   
+                                    (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
+                                             (mapFloor[:, 1] - mid[1] / step) ** 2 +
+                                             (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
 
                                    ], axis=0))
 
@@ -304,9 +320,6 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         cv2.line(obsFlat, (int(coords1[1]/step), int(coords1[0]/step)), (int(coords2[1]/step), int(coords2[0]/step)), 100, 1)
 
     obsFlatB = obsFlat > 10
-
-    end = time.time()
-    print(end - start)
 
     shellFlat[shellx, shelly] = 1
 
