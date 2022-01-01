@@ -19,7 +19,7 @@ if drawRobot:
     
 from enum import Enum
 import copy
-# import curves
+import curves
 import numpy as np
 import genPath
 
@@ -124,6 +124,12 @@ driveAcc = 10  # accuracy of driving for curves (mm)
 #                curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius*3)),
 #                curves.quadBezier((-radius, -radius*3), (-radius, -radius*4), (0, -radius*4))]
 
+# radius = 40*10  # millimeters * 10 = centimeters
+# driveCurves = [curves.quadBezier((0, 0), (radius, 0), (radius, -radius)),
+#                curves.quadBezier((radius, -radius), (radius, -radius*2), (0, -radius*2)),
+#                curves.quadBezier((0, -radius*2), (-radius, -radius*2), (-radius, -radius)),
+#                curves.quadBezier((-radius, -radius), (-radius, 0), (0, 0))]
+
 # radius = 70 * 10
 # driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0)), curves.quadBezier((radius, 0), (radius+radius, 0), (radius+radius, -radius))]
 
@@ -170,8 +176,17 @@ lr_check = True
 focalLen = 441.25*31.35
 baseline = 7.5*10
 
-camSleepTime = 60
+camSleepTime = 5
 waitTime = 5
+
+refLeg = order[0]
+refFlag = True
+
+lastMoved = False
+
+moveCountdown = [-1, -1, -1, -1]
+
+lastFoundP = [0, 0, 0, 0]
 
 pipeline = None
 
@@ -212,7 +227,8 @@ if runCamera:
     monoRight.out.link(outR.input)
     
     depth.depth.link(outDisp.input)
-    
+
+
 # Instruction types
 class inst_type(Enum):
     nul = 0  # do nothing
@@ -252,6 +268,7 @@ def initVariables():
     moveCountdown = [-1, -1, -1, -1]
     
     lastFoundP = [0, 0, 0, 0]
+
 
 # Main loop
 def mainLoop(q, lock):
@@ -320,7 +337,7 @@ def mainLoop(q, lock):
 
         # print(legPos)
 
-    for posInd in range(0, min(len(dPoints)-50, 300000), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
+    for posInd in range(0, min(len(dPoints), 200), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
 
         # print(dPoints[posInd])
         # input()
@@ -752,7 +769,6 @@ def findNext(dPoints, cornerCoord, bodyAng, leg):
     relPos = [0, searchDist * ((-1) ** leg)]  # flip to right side (legs 1 and 3)
     refAng = (bodyAng + (0.5*PI if leg % 2 == 0 else 1.5*PI)) % (2*PI)
 
-
     back = inDist if leg <= 1 else outDist
     front = outDist if leg <= 1 else inDist
 
@@ -776,7 +792,7 @@ def findNext(dPoints, cornerCoord, bodyAng, leg):
 
         testDist = dist(globLegTestPos, cornerCoord)
 
-        #if (diffAng > frontAng)  or (diffAng > PI) or testDist > max(front, back):
+        # if (diffAng > frontAng)  or (diffAng > PI) or testDist > max(front, back):
         if flag and (diffAng > frontAng or testDist > max(front, back)):
             foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
             print("found for leg " + str(leg) + " " + str(lastFoundP[leg]) + " " + str(foundInd))
@@ -843,17 +859,26 @@ def moveLegs(rots, leg):
 def execInst(ins, leg):
     global coords
 
-    if ins.type == inst_type.abs:
-        for j in range(0, 3):
-            if ins.args[j] is not None:
-                coords[leg][j] = ins.args[j]
-        moveLegs(calcRots(coords[leg], leg), leg)
+    for tryy in range(3):
+        try:
+            if ins.type == inst_type.abs:
+                for j in range(0, 3):
+                    if ins.args[j] is not None:
+                        coords[leg][j] = ins.args[j] * (0.70 if j == 0 and leg % 2 == 1 else 1)
+                moveLegs(calcRots(coords[leg], leg), leg)
 
-    elif ins.type == inst_type.rel:
-        for j in range(0, 3):
-            if ins.args[j] is not None:
-                coords[leg][j] += ins.args[j]
-        moveLegs(calcRots(coords[leg], leg), leg)
+            elif ins.type == inst_type.rel:
+                for j in range(0, 3):
+                    if ins.args[j] is not None:
+                        coords[leg][j] += ins.args[j]
+                moveLegs(calcRots(coords[leg], leg), leg)
+
+            return
+
+        except ValueError:
+            print("incomplete packet! try #" + str(tryy+1))
+
+    raise ValueError("INCOMPLETE PACKET 3x")
 
 
 # drives single motor of a leg
@@ -933,7 +958,7 @@ def pltRobot(dPoints, corners, angle, legs):
     print(tmp)
 
     fig.canvas.draw()
-    #plt.waitforbuttonpress()
+    # plt.waitforbuttonpress()
     plt.pause(0.02)
     
 
@@ -942,11 +967,12 @@ if __name__ == "__main__":
 
     qu = Queue()
     ll = Lock()
+    cl = Lock()
 
     mainLoop(qu, ll)
 
     if runCamera:
-        p = Process(target=cameraProcessTurn.takeImage, args=(qu, ll, pipeline, camSleepTime),
+        p = Process(target=cameraProcessTurn.takeImage, args=(qu, ll, cl, pipeline, camSleepTime),
                     kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
                     daemon=True)
     else:
@@ -971,7 +997,51 @@ if __name__ == "__main__":
             print("path got")
             driveCurves = qu.get()
 
-        mainLoop(qu, ll)
+        # radius = 70 * 10
+        # driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0)), curves.quadBezier((radius, 0), (radius+radius, 0), (radius+radius, -radius))]
+
+        cl.acquire()
+
+        if driveCurves is None:
+            print("invalid images, turning 90")
+
+            rotation = np.deg2rad(-90)
+
+            bodyCornerss = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
+
+            for legg in range(4):
+                bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], 0)
+
+            tmpRelPoss = [[], [], [], []]
+            for k in range(4):
+                tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], 0, k, -walkHeight)
+
+            destPoss = turnStPos if rotation else turnStNeg
+
+            stepLegs(tmpRelPoss, destPoss, walkHeight, turnWalkHeight)
+
+            for k in range(4):
+                legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+
+            spotTurn(np.rad2deg(rotation))
+
+            for legg in range(4):
+                bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], rotation)
+
+            tmpRelPoss = [[], [], [], []]
+            for k in range(4):
+                tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], rotation, k, -walkHeight)
+
+            destPoss = relStPos
+
+            stepLegs(tmpRelPoss, relStPos, turnWalkHeight, walkHeight)
+
+            for k in range(4):
+                legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+        else:
+            mainLoop(qu, ll)
+
+        cl.release()
 
         print("loop over")
 
@@ -985,3 +1055,4 @@ if __name__ == "__main__":
         for i in range(4):
             legPos[i] = locToGlob((lastRelPos[i][0], lastRelPos[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
 
+        # break

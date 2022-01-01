@@ -8,6 +8,7 @@ import obstacleDetect
 import aStar
 import genPath
 import RPi.GPIO as GPIO
+import traceback
 
 
 def mapVal(inSt, inEn, outSt, outEn, val):
@@ -26,12 +27,13 @@ def setAngle(angle, p):
     p.ChangeDutyCycle(0)
 
 
-def takeImage(q, lock, pipeline, camSleepTime, **args):
+def takeImage(q, lock, camLock, pipeline, camSleep, **args):
     """
     :param q: queue for images
     :param lock: lock for camera process
+    :param camLock: lock for starting camera
     :param pipeline: pipeline for camera
-    :param camSleepTime:  time to sleep for camera
+    :param camSleep: time to sleep between camera lock checks
     :param args: flagWaitTime, focalLen, baseline, robotWidth, amRot
     :return:
     """
@@ -55,6 +57,7 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
         p.start(0)
 
         while True:
+            camLock.acquire()
             lock.acquire()
             print("cam start")
 
@@ -135,16 +138,23 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
 
                 setAngle(90, p)
 
-                shellFlat, obsFlat, walkFlat = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
+                shellFlat, obsFlat, walkFlat, unwalkCoords, valid = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
 
                 startCoords = (int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2))
 
                 onPath, path, closestNode, voro, walkmap = \
-                    aStar.aStar(shellFlat, obsFlat, walkFlat, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1),
+                    aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, None,
                                 verbose=True,
                                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
                                 robotWidth=robotWidth,
                                 ignoreDia=False, diaWeight=100, start=startCoords)
+
+                # onPath, path, closestNode, voro, walkmap = \
+                #     aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1),
+                #                 verbose=True,
+                #                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
+                #                 robotWidth=robotWidth,
+                #                 ignoreDia=False, diaWeight=100, start=startCoords)
 
                 # aStar.aStar(shellFlat, obsFlat, walkFlat, (0, shellFlat.shape[1] - 1),
 
@@ -162,12 +172,18 @@ def takeImage(q, lock, pipeline, camSleepTime, **args):
                 cv2.imwrite("images/shell-" + str(curTime) + ".png", renderImgCoord(shellFlat.astype(np.uint8)) * 255)
                 cv2.imwrite("images/obs-" + str(curTime) + ".png", renderImgCoord(obsFlat.astype(np.uint8)) * 255)
 
-                q.put(newCurves)
+                if valid:
+                    q.put(newCurves)
+                else:
+                    q.put(None)
 
-            except ValueError:
+            except ValueError as e:
                 print("ERRORED")
+                print(traceback.format_exc())
 
             print("cam end")
             lock.release()
+            camLock.release()
 
-            time.sleep(camSleepTime)
+            time.sleep(camSleep)
+

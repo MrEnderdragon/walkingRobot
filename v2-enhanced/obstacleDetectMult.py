@@ -44,9 +44,15 @@ def processImages(start, end, verbose=False):
         rots.append(np.deg2rad(mapVal(st, en, -45, 45, i)))
 
     start = time.time()
-    shellFlat, obsFlat, walkFlat, unwalkCoords = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
+    shellFlat, obsFlat, walkFlat, unwalkCoords, _ = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
+    # onPath, path, closestNode, voro, walkmap = \
+    #     aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
+    #                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
+    #                 ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
+
     onPath, path, closestNode, voro, walkmap = \
-        aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
+        aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, None,
+                    verbose=True,
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
@@ -77,15 +83,13 @@ def processImages(start, end, verbose=False):
     return newCurves
 
 
-def takeImage(q, lock, pipeline, camSleepTime, **args):
+def takeImage(q, _, __, camSleepTime, **___):
     while True:
-        newCurves = processImages(6,8, False)
+        newCurves = processImages(6, 8, False)
         q.put(newCurves)
         time.sleep(camSleepTime)
         
 
-
-if __name__ == "__main__":    
-    for ind in range(3):
+if __name__ == "__main__":
+    for ind in range(4, 5):
         newCurves = processImages(ind*3, ind*3+2, True)
-

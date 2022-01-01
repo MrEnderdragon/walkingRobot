@@ -4,16 +4,16 @@ from queue import PriorityQueue
 import time
 from scipy.spatial.distance import cdist
 
-def checkGoal(coord1, coord2, arr=False):
-    
+
+def checkGoal(coord1, coord2):
     rows = coord2[0]
     cols = coord2[1]
     
-    if coord1[0] == rows or coord1[1] ==0 or coord1[1] == cols:
+    if coord1[0] == rows or coord1[1] == 0 or coord1[1] == cols:
         return 0
     
-    x = coord1[0]  - rows/2
-    y = abs(coord1[1] -  cols/2)
+    x = coord1[0] - rows/2
+    y = abs(coord1[1] - cols/2)
     
     return cols/2 - max(x, y)
     
@@ -51,6 +51,7 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
         :param shell: shell of obstacles (true means is there)
         :param unknowns: unknown parts of obstacles (true means unknown)
         :param canWalk: field of view, or general places that can be walked (true means can walk)
+        :param unwalkCoords: coordinates which are not walkable
         :param goal: (row, col) of goal point, relative to current position facing forwards
         :param verbose: print status?
         :param args: robotWidth (mm), step (mm), distFunc, goalFunc, voroFunc, voroWeight, vorMax, ignoreDia, diaWeight, start
@@ -63,7 +64,7 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
     step = args["step"] if "step" in args else 50
 
     distFunc = args["distFunc"] if "distFunc" in args else manhattan
-    goalFunc = args["goalFunc"] if "goalFunc" in args else checkGoal
+    goalFunc = checkGoal if goal is None else (args["goalFunc"] if "goalFunc" in args else manhattan)
     # voroFunc = args["voroFunc"] if "voroFunc" in args else manhattan
 
     voroWeight = args["voroWeight"] if "voroWeight" in args else 0.1
@@ -74,8 +75,13 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
 
     startCoords = args["start"] if "start" in args else (int(shell.shape[0] / 2), 0)
 
-    #goal = (goal[0] + int(rows / 2), goal[1] + int(cols / 2))
-    goal = (rows, cols)
+    goalFar = False
+
+    if goal is None:
+        goal = (rows, cols)
+        goalFar = True
+    else:
+        goal = (goal[0] + int(rows / 2), goal[1] + int(cols / 2))
 
     unwalkable = shell.astype(np.bool_) + unknowns.astype(np.bool_)
 
@@ -102,7 +108,7 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
     if verbose:
         print("voronoi start")
 
-    #unwalkCoords = np.array(tuple(zip(*np.where(walkMap == 0))))
+    # unwalkCoords = np.array(tuple(zip(*np.where(walkMap == 0))))
 
     walkCoords = np.array(tuple(zip(*np.where(walkMap > 0))))
     
@@ -124,7 +130,7 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
     q.put((0, startCoords))
     distTo[startCoords[0], startCoords[1]] = 0
 
-    closestNode = (0, 0)
+    closestNode = (startCoords[0], startCoords[1])
 
     if verbose:
         end = time.time()

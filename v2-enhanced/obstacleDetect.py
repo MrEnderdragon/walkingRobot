@@ -73,6 +73,7 @@ def detect(vDisp, disp, dep, verbose=False):
         :param verbose: print info?
         :return: shellFlat, obsFlat, walkFlat
     """
+    global walkFlat, walkFlatDone
 
     vDisp = vDisp[0:360, ...]
     disp = disp[0:360, ...]
@@ -235,8 +236,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     if not walkFlatDone:
         walkFlat = walkFlatI > 10
-        with open('./robot_walk.npy', 'wb') as f:
-            np.save(f, walkFlat)
+        with open('./robot_walk.npy', 'wb') as ff:
+            np.save(ff, walkFlat)
             walkFlatDone = True
         
     # floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
@@ -248,8 +249,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     #
     #                                ], axis=0))
 
-    #uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
-    #floorheight = np.min(uniqueF[:, 2]) if len(uniqueF) > 0 else 0
+    # uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
+    # floorheight = np.min(uniqueF[:, 2]) if len(uniqueF) > 0 else 0
     floorheight = 1
 
     floorLessCoords = np.where(np.all([np.all(mapFloorLess > 0, axis=1),
@@ -272,13 +273,22 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     if display:
         shellx, shelly, shellz = shellVox
         print(len(shellx))
-        # floorVox = uniqueF[countsF > thresh].T
-        # floorx, floory, floorz = floorVox
+        floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
+                                       np.all(mapFloor < maxSize*2 / step, axis=1),
+
+                                       (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
+                                                (mapFloor[:, 1] - mid[1] / step) ** 2 +
+                                                (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
+
+                                       ], axis=0))
+        uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
+        floorVox = uniqueF[countsF > thresh].T
+        floorx, floory, floorz = floorVox
         # print(len(floorx))
         import mayavi.mlab
 
         mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
-        #mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
+        mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
         mayavi.mlab.show()
 
     shellUnsc = unscale(shellVox.T, mid)  # X by 3
@@ -311,29 +321,25 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         angleRight = np.min(xyAngs)
         angleLeft = np.max(xyAngs)
         
-        coords1 = scaleOld([pos[0], pos[1], 0], mid)
-        #if obsFlat[int(coords1[1]/step), int(coords1[0]/step)] == 100:
+        pCoords = scaleOld([pos[0], pos[1], 0], mid)
+        # if obsFlat[int(coords1[1]/step), int(coords1[0]/step)] == 100:
         #    continue
         tSize = int(maxSize*1.5)
-        coords2 = scaleOld([tSize * np.cos(angleRight), tSize * np.sin(angleRight), 0], mid)
-        coords3 = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], mid)
+        rightCoords = scaleOld([tSize * np.cos(angleRight), tSize * np.sin(angleRight), 0], mid)
+        leftCoords = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], mid)
         # contours = np.array([[int(coords1[1]/step), int(coords1[0]/step)],
         #                      [int(coords2[1]/step), int(coords2[0]/step)],
         #                      [int(coords3[1]/step), int(coords3[0]/step)]],np.int32)
         #
         # cv2.fillConvexPoly(obsFlat, contours, color=100)
-        
-        
-        cv2.line(obsFlat, (int(coords1[1]/step), int(coords1[0]/step)), (int(coords2[1]/step), int(coords2[0]/step)), 100, 1)
-        
-        cv2.line(obsFlat, (int(coords1[1]/step), int(coords1[0]/step)), (int(coords3[1]/step), int(coords3[0]/step)), 100, 1)
 
-    
+        cv2.line(obsFlat, (int(pCoords[1]/step), int(pCoords[0]/step)), (int(rightCoords[1]/step), int(rightCoords[0]/step)), 100, 1)
+        cv2.line(obsFlat, (int(pCoords[1]/step), int(pCoords[0]/step)), (int(leftCoords[1]/step), int(leftCoords[0]/step)), 100, 1)
+
     contours, _ = cv2.findContours(obsFlat, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     
     # test = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.uint8)
-    
-    
+
     unWalkCoords = []
     for contour in contours:
         for item in contour:
@@ -348,8 +354,9 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         end = time.time()
         print(end-start)
         print("done unknowns")
-    
 
     shellFlat[shellx, shelly] = 1
 
-    return shellFlat, obsFlatB, walkFlat, np.array(unWalkCoords)
+    valid = (len(shellx) != 0)
+
+    return shellFlat, obsFlatB, walkFlat, np.array(unWalkCoords), valid
