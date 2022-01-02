@@ -468,7 +468,7 @@ def mainLoop(q, lock):
                         for moveTimerLeg in range(0, 4):
                             moveCountdown[order[(moveTimerLeg+order.index(refLeg)) % 4]] = int(amTillNew * moveTimerLeg / 4)
 
-                    log.log()
+                    log.log("")
 
             if moveCountdown[curLeg] >= 0:
                 moveCountdown[curLeg] -= 1
