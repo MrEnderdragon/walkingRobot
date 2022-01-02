@@ -865,7 +865,7 @@ def execInst(ins, leg):
             if ins.type == inst_type.abs:
                 for j in range(0, 3):
                     if ins.args[j] is not None:
-                        coords[leg][j] = ins.args[j] * (0.71 if j == 0 and leg % 2 == 1 else 1)
+                        coords[leg][j] = ins.args[j] * (0.80 if j == 0 and leg % 2 == 1 else 1)
                 moveLegs(calcRots(coords[leg], leg), leg)
 
             elif ins.type == inst_type.rel:

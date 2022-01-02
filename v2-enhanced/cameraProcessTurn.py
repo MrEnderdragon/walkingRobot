@@ -19,6 +19,10 @@ subpixel = True
 # Better handling for occlusions:
 lr_check = True
 
+focalLen = 441.25  # pixels
+baseline = 7.5 * 10  # mm
+minSee = focalLen * baseline / 95
+
 
 def mapVal(inSt, inEn, outSt, outEn, val):
     return (val-inSt)/(inEn-inSt) * (outEn-outSt) + outSt
@@ -157,15 +161,15 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
 
                 setAngle(90, p)
 
-                shellFlat, obsFlat, walkFlat, unwalkCoords, valid = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
+                shellFlat, obsFlat, walkFlat, valid = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
 
                 startCoords = (int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2))
 
                 onPath, path, closestNode, voro, walkmap = \
-                    aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, None,
+                    aStar.aStar(shellFlat, obsFlat, walkFlat, None,
                                 verbose=True,
                                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
-                                robotWidth=robotWidth, voroMax=600, 
+                                robotWidth=robotWidth+50, voroMax=600,
                                 ignoreDia=False, diaWeight=100, start=startCoords)
 
                 # onPath, path, closestNode, voro, walkmap = \
@@ -181,6 +185,18 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
 
                 # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
                 newCurves, curvedpath = genPath.gen_path(path)
+
+                if len(path) <= 1 or aStar.euclid(path[len(path)-1], (0, 0)) < minSee + 50 or path[1][0] < 0:
+                    valid = False
+
+                if not len(path) <= 1:
+                    log.log("INVALID: SHELL LENGTH < 5")
+
+                elif not aStar.euclid(path[len(path)-1], (0, 0)) < minSee + 50:
+                    log.log("INVALID: PATH LENGTH < MINSEE")
+
+                elif not path[1][0] < 0:
+                    log.log("INVALID: WALKING BACKWARDS")
 
                 log.log("curve points done")
 

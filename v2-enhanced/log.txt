@@ -1,0 +1,224 @@
+
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0009348392486572266
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005238056182861328
+masking end
+hough1 start
+hough2 start
+masking start
+0.0006682872772216797
+masking end
+340
+21.415224075317383
+done detect
+starting unknowns
+0.027873992919921875
+done unknowns
+voronoi start
+0.019403934478759766
+a* start
+0.07302403450012207
+path start
+(0.0,-0.0),(600.0,-2950.0),
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0006818771362304688
+masking end
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0005459785461425781
+masking end
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0005548000335693359
+masking end
+floor: 22562 out of 51163
+hough1 start
+hough2 start
+masking start
+0.00045180320739746094
+masking end
+floor: 25055 out of 75604
+hough1 start
+hough2 start
+masking start
+0.0005016326904296875
+masking end
+floor: 239 out of 129950
+340
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0006959438323974609
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005800724029541016
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005350112915039062
+masking end
+340
+7.8244171142578125
+done detect
+starting unknowns
+0.026470184326171875
+done unknowns
+voronoi start
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0006692409515380859
+masking end
+hough1 start
+hough2 start
+masking start
+0.0006940364837646484
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005750656127929688
+masking end
+340
+16.90832209587097
+done detect
+starting unknowns
+0.031641244888305664
+done unknowns
+voronoi start
+0.016746044158935547
+a* start
+0.09030294418334961
+path start
+(0.0,-0.0),(200.0,-0.0),(900.0,-700.0),(2350.0,-1750.0),(2950.0,-1750.0),
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0004971027374267578
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005450248718261719
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005400180816650391
+masking end
+715
+9.004478931427002
+done detect
+starting unknowns
+0.057807207107543945
+done unknowns
+voronoi start
+0.004102945327758789
+a* start
+0.05061602592468262
+path start
+(0.0,-0.0),(700.0,650.0),(1300.0,650.0),(1500.0,450.0),(1850.0,450.0),
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0004780292510986328
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005238056182861328
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005538463592529297
+masking end
+715
+9.018442392349243
+done detect
+starting unknowns
+0.07312488555908203
+done unknowns
+voronoi start
+0.00600123405456543
+a* start
+0.04455900192260742
+path start
+(0.0,-0.0),(700.0,650.0),(1300.0,650.0),(1500.0,450.0),(1850.0,450.0),
+starting detect
+hough1 start
+hough2 start
+masking start
+0.000476837158203125
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005321502685546875
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005319118499755859
+masking end
+715
+5.729247093200684
+done detect
+starting unknowns
+0.04251909255981445
+done unknowns
+voronoi start
+0.005305051803588867
+a* start
+0.050151824951171875
+path start
+(0.0,-0.0),(700.0,650.0),(1300.0,650.0),(1950.0,250.0),
+starting detect
+hough1 start
+hough2 start
+masking start
+0.0005047321319580078
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005497932434082031
+masking end
+hough1 start
+hough2 start
+masking start
+0.0005161762237548828
+masking end
+715
+4.969577789306641
+done detect
+starting unknowns
+0.040724992752075195
+done unknowns
+voronoi start
+0.008821964263916016
+a* start
+0.056524038314819336
+path start
+(0.0,-0.0),(250.0,-0.0),(650.0,-400.0),(2050.0,-650.0),

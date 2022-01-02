@@ -64,14 +64,14 @@ def processImages(start, end, verbose=False):
         plt.show(block=False)
 
     start = time.time()
-    shellFlat, obsFlat, walkFlat, unwalkCoords, _ = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, True)
+    shellFlat, obsFlat, walkFlat, _ = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, True)
     # onPath, path, closestNode, voro, walkmap = \
     #     aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
     #                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
     #                 ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
     onPath, path, closestNode, voro, walkmap = \
-        aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, None,
+        aStar.aStar(shellFlat, obsFlat, walkFlat, None,
                     verbose=True,
                     distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth, voroMax=600, 
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
@@ -93,7 +93,7 @@ def processImages(start, end, verbose=False):
     
     if verbose:
         
-        fig = plt.figure()
+        fig = plt.figure(333)
         fig.add_subplot(2, 3, 1)
         plt.imshow((shellFlat*255).astype(np.uint8))
         plt.axis('off')
@@ -145,5 +145,5 @@ def takeImage(q, _, __, camSleepTime, **___):
         
 
 if __name__ == "__main__":
-    for ind in range(15, 60):
+    for ind in range(54, 60):
         newCurvess = processImages(ind*3, ind*3+2, True)

@@ -48,12 +48,11 @@ def euclid(coord1, coord2, arr=False):
     return np.sqrt((coord2[0] - coord1[0]) ** 2 + (coord2[1] - coord1[1]) ** 2)
 
 
-def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
+def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     """
         :param shell: shell of obstacles (true means is there)
         :param unknowns: unknown parts of obstacles (true means unknown)
         :param canWalk: field of view, or general places that can be walked (true means can walk)
-        :param unwalkCoords: coordinates which are not walkable
         :param goal: (row, col) of goal point, relative to current position facing forwards
         :param verbose: print status?
         :param args: robotWidth (mm), step (mm), distFunc, goalFunc, voroFunc, voroWeight, vorMax, ignoreDia, diaWeight, start
@@ -62,7 +61,7 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
 
     rows, cols = shell.shape
 
-    robotWidth = args["robotWidth"] if "robotWidth" in args else 112.6
+    robotWidth = args["robotWidth"] if "robotWidth" in args else 200
     step = args["step"] if "step" in args else 50
 
     distFunc = args["distFunc"] if "distFunc" in args else manhattan
@@ -109,6 +108,13 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
 
     if verbose:
         log.log("voronoi start")
+
+    contours, _ = cv2.findContours((walkMap if ignoreDia else walkMapD).astype(np.uint8)*255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    unwalkCoords = []
+    for contour in contours:
+        for item in contour:
+            unwalkCoords.append((item[0][1], item[0][0]))
 
     # unwalkCoords = np.array(tuple(zip(*np.where(walkMap == 0))))
 

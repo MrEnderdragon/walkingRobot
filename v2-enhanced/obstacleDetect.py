@@ -6,7 +6,6 @@ import os
 import log
 
 focalLen = 441.25  # pixels
-ppmm = 1000/3  # pixels per mm, 1p = 3um
 baseline = 7.5 * 10  # mm
 minSee = focalLen * baseline / 95
 
@@ -196,6 +195,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     if verbose:
         log.log("starting detect")
 
+    amInval = 0
+
     for i in range(len(rots)):
         vDisp = vDisps[i][0:360, ...]
         disp = disps[i][0:360, ...]
@@ -205,12 +206,17 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         depToUse = dep
 
-        xsFloorLess, ysFloorLess = np.where(floor == 0)
-        xsFloor, ysFloor = np.where(floor == 1)
+        xsFloorLess, ysFloorLess = np.where(np.all([floor == 0, dep != 0], axis=0))
+        xsFloor, ysFloor = np.where(np.all([floor == 1, dep != 0], axis=0))
+
+        # if verbose:
+        #     log.log("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
 
         if len(xsFloor) > (len(xsFloor) + len(xsFloorLess))*floorThresh:
             if verbose:
                 log.log("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
+
+            amInval += 1
         else:
             mapFloor = np.append(mapFloor, np.floor(scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
 
@@ -339,18 +345,6 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         cv2.line(obsFlat, (int(pCoords[1]/step), int(pCoords[0]/step)), (int(rightCoords[1]/step), int(rightCoords[0]/step)), 100, 1)
         cv2.line(obsFlat, (int(pCoords[1]/step), int(pCoords[0]/step)), (int(leftCoords[1]/step), int(leftCoords[0]/step)), 100, 1)
-
-    contours, _ = cv2.findContours(obsFlat, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    
-    if verbose:
-        test = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.uint8)
-
-    unWalkCoords = []
-    for contour in contours:
-        for item in contour:
-            unWalkCoords.append((item[0][1], item[0][0]))
-            if verbose:
-                test[item[0][1], item[0][0]] = 255
         
     # if verbose:
     #     cv2.imshow("test", test)
@@ -364,6 +358,12 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     shellFlat[shellx, shelly] = 1
 
-    valid = (len(shellx) != 0)
+    valid = (len(shellx) > 5 and amInval < 2)
 
-    return shellFlat, obsFlatB, walkFlat, np.array(unWalkCoords), valid
+    if not len(shellx) > 5 and verbose:
+        log.log("INVALID: SHELL LENGTH < 5")
+
+    if not amInval < 2 and verbose:
+        log.log("INVALID: VALID PICTURES < 2")
+
+    return shellFlat, obsFlatB, walkFlat, valid

@@ -14,3 +14,4 @@ scp rotAndMerge.py   root@10.0.10.116:/walking_robot/v2Good
 scp spotTurnStepwise.py   root@10.0.10.116:/walking_robot/v2Good
 scp ?_instWalk*.py  root@10.0.10.116:/walking_robot/v2Good
 scp 1?_instWalk*.py  root@10.0.10.116:/walking_robot/v2Good
+echo $(date)
