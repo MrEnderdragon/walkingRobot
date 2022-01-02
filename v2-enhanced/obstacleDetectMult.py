@@ -6,6 +6,7 @@ import aStar
 # import curves
 import genPath
 import time
+import matplotlib.pyplot as plt
 
 
 robotWidth = 112.6/2+120
@@ -28,6 +29,9 @@ def processImages(start, end, verbose=False):
 
     st = start
     en = end
+    
+    if verbose:
+        fig = plt.figure('image', figsize=(10,6))
 
     for i in range(st, en+1):
         # Constructing test image
@@ -37,14 +41,30 @@ def processImages(start, end, verbose=False):
         disp = cv2.imread("dispImages/disp" + imgId, cv2.IMREAD_UNCHANGED)
         dep = cv2.imread("depImages/depth" + imgId, cv2.IMREAD_UNCHANGED)
         # colour = cv2.imread("RImages/R" + imgId, cv2.IMREAD_COLOR)
+        
+        if verbose:
+            colour = cv2.imread("colImages/col-" + str(i) + ".png", cv2.IMREAD_GRAYSCALE)
+            depthColour = cv2.imread("depthColor/depth-" + str(i) + ".png", cv2.IMREAD_UNCHANGED)
+            fig.add_subplot(3, 3, 3- (i - st))
+            plt.imshow(colour, cmap='gray')
+            plt.axis('off')
+            plt.title("image " + str(i))        
+            fig.add_subplot(2, 3, 6- (i - st))
+            plt.imshow(depthColour)
+            plt.axis('off')
+            plt.title("depth " + str(i))        
 
         vDisps.append(vDisp)
         disps.append(disp)
         deps.append(dep)
         rots.append(np.deg2rad(mapVal(st, en, -45, 45, i)))
 
+    if verbose:
+        plt.tight_layout()
+        plt.show(block=False)
+
     start = time.time()
-    shellFlat, obsFlat, walkFlat, unwalkCoords, _ = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
+    shellFlat, obsFlat, walkFlat, unwalkCoords, _ = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, True)
     # onPath, path, closestNode, voro, walkmap = \
     #     aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
     #                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
@@ -53,7 +73,7 @@ def processImages(start, end, verbose=False):
     onPath, path, closestNode, voro, walkmap = \
         aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, None,
                     verbose=True,
-                    distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
+                    distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth, voroMax=600, 
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
     # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
@@ -72,13 +92,47 @@ def processImages(start, end, verbose=False):
     print(tmp)
     
     if verbose:
-        cv2.imshow("voro", (voro * 255/(400/50)).astype(np.uint8))
-        cv2.imshow("path", (onPath * 255).astype(np.uint8))
-        cv2.imshow("shell", (shellFlat*255).astype(np.uint8))
-        cv2.imshow("obs", (obsFlat*255).astype(np.uint8))
-        cv2.imshow("walk", (walkFlat*255).astype(np.uint8))
-        cv2.imshow("curvedpath", (curvedpath * 255).astype(np.uint8))
-        cv2.waitKey()
+        
+        fig = plt.figure()
+        fig.add_subplot(2, 3, 1)
+        plt.imshow((shellFlat*255).astype(np.uint8))
+        plt.axis('off')
+        plt.title("shell")        
+
+        fig.add_subplot(2, 3, 2)
+        plt.imshow((obsFlat*255).astype(np.uint8))
+        plt.axis('off')
+        plt.title("obs")        
+
+        fig.add_subplot(2, 3, 3)
+        plt.imshow((walkFlat*255).astype(np.uint8))
+        plt.axis('off')
+        plt.title("walk")        
+
+        fig.add_subplot(2, 3, 4)
+        plt.imshow((voro * 255/(600/50)).astype(np.uint8))
+        plt.axis('off')
+        plt.title("voro")        
+
+        fig.add_subplot(2, 3, 5)
+        plt.imshow((onPath * 255).astype(np.uint8))
+        plt.axis('off')
+        plt.title("path")        
+
+        fig.add_subplot(2, 3, 6)
+        plt.imshow((curvedpath * 255).astype(np.uint8))
+        plt.axis('off')
+        plt.title("curvespath")
+        plt.show()
+        #plt.waitforbuttonpress(0)
+        #plt.close('all')         
+        # cv2.imshow("voro", (voro * 255/(400/50)).astype(np.uint8))
+        # cv2.imshow("path", (onPath * 255).astype(np.uint8))
+        # cv2.imshow("shell", (shellFlat*255).astype(np.uint8))
+        # cv2.imshow("obs", (obsFlat*255).astype(np.uint8))
+        # cv2.imshow("walk", (walkFlat*255).astype(np.uint8))
+        # cv2.imshow("curvedpath", (curvedpath * 255).astype(np.uint8))
+        #cv2.waitKey()
 
     return newCurves
 
@@ -91,5 +145,5 @@ def takeImage(q, _, __, camSleepTime, **___):
         
 
 if __name__ == "__main__":
-    for ind in range(4, 5):
+    for ind in range(21, 60):
         newCurves = processImages(ind*3, ind*3+2, True)

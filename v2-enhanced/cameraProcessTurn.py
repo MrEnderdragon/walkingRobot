@@ -165,7 +165,7 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                     aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, None,
                                 verbose=True,
                                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
-                                robotWidth=robotWidth,
+                                robotWidth=robotWidth, voroMax=600, 
                                 ignoreDia=False, diaWeight=100, start=startCoords)
 
                 # onPath, path, closestNode, voro, walkmap = \
@@ -186,7 +186,7 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
 
                 cv2.imwrite("images/onpath-" + str(curTime) + ".png", renderImgCoord(onPath) * 255)
                 cv2.imwrite("images/curvePath-" + str(curTime) + ".png", renderImgCoord(curvedpath) * 255)
-                cv2.imwrite("images/voro-" + str(curTime) + ".png", renderImgCoord(voro) * 50)
+                cv2.imwrite("images/voro-" + str(curTime) + ".png", renderImgCoord(voro * 255/(600 / 50)))
                 cv2.imwrite("images/walkMap-" + str(curTime) + ".png", renderImgCoord(walkmap) * 255)
                 cv2.imwrite("images/shell-" + str(curTime) + ".png", renderImgCoord(shellFlat.astype(np.uint8)) * 255)
                 cv2.imwrite("images/obs-" + str(curTime) + ".png", renderImgCoord(obsFlat.astype(np.uint8)) * 255)
