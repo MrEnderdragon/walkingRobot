@@ -965,6 +965,12 @@ def pltRobot(dPoints, corners, angle, legs):
 
 # program start
 if __name__ == "__main__":
+    import atexit
+
+    def exit_handler():
+        log.log("\n\n~~~ program end: " + str(time.asctime(time.localtime())) + " ~~~\n\n")
+
+    atexit.register(exit_handler)
 
     qu = Queue()
     ll = Lock()

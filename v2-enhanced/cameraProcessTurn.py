@@ -208,6 +208,13 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
 
 
 if __name__ == "__main__":
+    import atexit
+
+    def exit_handler():
+        log.log("\n\n~~~ program end: " + str(time.asctime(time.localtime())) + " ~~~\n\n")
+
+    atexit.register(exit_handler)
+
     # Create pipeline
     pipeline = dai.Pipeline()
 
