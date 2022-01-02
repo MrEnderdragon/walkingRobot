@@ -4,6 +4,7 @@ from skimage.transform import hough_line, hough_line_peaks
 import slic
 import math
 import time
+import log
 
 
 def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
@@ -24,10 +25,10 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
 
     if slicc:
         if verbose:
-            print("slic start")
+            log.log("slic start")
 
         refSmall = cv2.resize(slicRef, (int(disp.shape[1] / (args["scl"] if "scl" in args else 1)), int(disp.shape[0] / (args["scl"] if "scl" in args else 1))), interpolation=cv2.INTER_AREA)
-        # print(refSmall.shape)
+        # log.log(refSmall.shape)
         pixLab, _, cc = slic.SLIC(refSmall, args["k"] if "k" in args else 100, args["m"] if "m" in args else 25, args["its"] if "its" in args else 5)
 
         avgs = np.zeros(len(cc), dtype=np.float_)
@@ -59,7 +60,7 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
     dispScaled = cv2.convertScaleAbs(disp*10, alpha=(255.0/65535.0))
 
     if verbose:
-        print("hough1 start")
+        log.log("hough1 start")
 
     # Classic straight-line Hough transform
     # Set a precision of 0.5 degree.
@@ -78,7 +79,7 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
             vDisp = cv2.line(vDisp, p1, p2, (0,), thickness=5)
 
     if verbose:
-        print("hough2 start")
+        log.log("hough2 start")
 
     tested_angles = np.linspace(-np.pi / 4, np.pi / 4, 360, endpoint=False)
     h, theta, d = hough_line(vDisp, theta=tested_angles)
@@ -96,7 +97,7 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
     start = time.time()
 
     if verbose:
-        print("masking start")
+        log.log("masking start")
 
     slope = np.tan(bestAng + np.pi / 2)
     (x0, y0) = bestDist * np.array([np.cos(bestAng), np.sin(bestAng)])
@@ -110,7 +111,7 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
 
     if verbose:
         end = time.time()
-        print(end-start)
-        print("masking end")
+        log.log(end-start)
+        log.log("masking end")
 
     return (bestAng, bestDist), disp, dispScaled, floorMask

@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 from queue import PriorityQueue
 import time
+import math
+import log
 from scipy.spatial.distance import cdist
 
 
@@ -85,7 +87,7 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
 
     unwalkable = shell.astype(np.bool_) + unknowns.astype(np.bool_)
 
-    kernel = np.ones((1 + int(robotWidth / step), 1 + int(robotWidth / step)), np.uint8)
+    kernel = np.ones((1 + int(math.ceil(robotWidth / step)), 1 + int(math.ceil(robotWidth / step))), np.uint8)
     obsNoDialate = unwalkable.astype(np.bool_)
     obstacles = cv2.dilate(unwalkable.astype(np.uint8), kernel, iterations=1).astype(np.bool_)
     canWalk = canWalk.astype(np.uint8)
@@ -106,11 +108,11 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
     start = time.time()
 
     if verbose:
-        print("voronoi start")
+        log.log("voronoi start")
 
     # unwalkCoords = np.array(tuple(zip(*np.where(walkMap == 0))))
 
-    walkCoords = np.array(tuple(zip(*np.where(walkMap > 0))))
+    walkCoords = np.array(tuple(zip(*np.where((walkMap if ignoreDia else walkMapD) > 0))))
     
     dists = np.min(cdist(walkCoords, unwalkCoords), axis=1)
     for ind in range(walkCoords.shape[0]):
@@ -134,9 +136,9 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
 
     if verbose:
         end = time.time()
-        print(end - start)
+        log.log(end - start)
         start = time.time()
-        print("a* start")
+        log.log("a* start")
 
     while not q.empty():
         dist, coords = q.get()
@@ -176,8 +178,8 @@ def aStar(shell, unknowns, canWalk, unwalkCoords, goal, verbose=False, **args):
 
     if verbose:
         end = time.time()
-        print(end - start)
-        print("path start")
+        log.log(end - start)
+        log.log("path start")
 
     while cur[0] != startCoords[0] or cur[1] != startCoords[1]:
         onPath[cur[0], cur[1]] = 1

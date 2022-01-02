@@ -9,6 +9,15 @@ import aStar
 import genPath
 import RPi.GPIO as GPIO
 import traceback
+from multiprocessing import Queue, Lock
+import log
+
+# Closer-in minimum depth, disparity range is doubled (from 95 to 190):
+extended_disparity = False  # doesn't work
+# Better accuracy for longer distance, fractional disparity 32-levels:
+subpixel = True
+# Better handling for occlusions:
+lr_check = True
 
 
 def mapVal(inSt, inEn, outSt, outEn, val):
@@ -59,7 +68,7 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
         while True:
             camLock.acquire()
             lock.acquire()
-            print("cam start")
+            log.log("cam start")
 
             try:
                 vDisps = []
@@ -78,13 +87,18 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                 time.sleep(1)
 
                 curTime = int(time.time())
-                f = open("images/latestTime.txt", "w")
-                f.write(str(curTime))
-                f.close()
+                # f = open("images/latestTime.txt", "w")
+                # f.write(str(curTime))
+                # f.close()
+
+                # with open("images/latestTime.txt", 'r+') as f:
+                #     content = f.read()
+                #     f.seek(0, 0)
+                #     f.write(str(curTime) + '\n' + content)
 
                 for i in range(1, amRot + 1):
 
-                    print("rot start")
+                    log.log("rot start")
 
                     rot = mapVal(1, amRot, -45, 45, i)
 
@@ -104,9 +118,14 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                     frameDep = frame
 
                     curTime = int(time.time())
-                    f = open("images/latestTime.txt", "w")
-                    f.write(str(curTime))
-                    f.close()
+                    # f = open("images/latestTime.txt", "w")
+                    # f.write(str(curTime))
+                    # f.close()
+
+                    with open("images/latestTime.txt", 'r+') as f:
+                        content = f.read()
+                        f.seek(0, 0)
+                        f.write(str(curTime) + '\n' + content)
 
                     depCol = cv2.applyColorMap(cv2.convertScaleAbs(frameDep * 10, alpha=(255.0 / 65535.0)),
                                                cv2.COLORMAP_JET)
@@ -158,12 +177,12 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
 
                 # aStar.aStar(shellFlat, obsFlat, walkFlat, (0, shellFlat.shape[1] - 1),
 
-                print("a* done")
+                log.log("a* done")
 
                 # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
                 newCurves, curvedpath = genPath.gen_path(path)
 
-                print("curve points done")
+                log.log("curve points done")
 
                 cv2.imwrite("images/onpath-" + str(curTime) + ".png", renderImgCoord(onPath) * 255)
                 cv2.imwrite("images/curvePath-" + str(curTime) + ".png", renderImgCoord(curvedpath) * 255)
@@ -178,12 +197,56 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                     q.put(None)
 
             except ValueError as e:
-                print("ERRORED")
-                print(traceback.format_exc())
+                log.log("ERRORED")
+                log.log(traceback.format_exc())
 
-            print("cam end")
+            log.log("cam end")
             lock.release()
             camLock.release()
 
             time.sleep(camSleep)
 
+
+if __name__ == "__main__":
+    # Create pipeline
+    pipeline = dai.Pipeline()
+
+    # Define sources and outputs
+    monoLeft = pipeline.createMonoCamera()
+    monoRight = pipeline.createMonoCamera()
+
+    depth = pipeline.createStereoDepth()
+
+    outDisp = pipeline.createXLinkOut()
+    outDisp.setStreamName("depOut")
+
+    outR = pipeline.createXLinkOut()
+    outR.setStreamName("outR")
+
+    # Properties
+    monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+    monoLeft.setBoardSocket(dai.CameraBoardSocket.LEFT)
+    monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+    monoRight.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+
+    # Create a node that will produce the depth map (using disparity output as it's easier to visualize depth this way)
+    depth.initialConfig.setConfidenceThreshold(200)
+    # Options: MEDIAN_OFF, KERNEL_3x3, KERNEL_5x5, KERNEL_7x7 (default)
+    depth.initialConfig.setMedianFilter(dai.MedianFilter.KERNEL_7x7)
+    depth.setLeftRightCheck(subpixel)
+    depth.setExtendedDisparity(extended_disparity)
+    depth.setSubpixel(lr_check)
+
+    # Linking
+    monoLeft.out.link(depth.left)
+    monoRight.out.link(depth.right)
+
+    monoRight.out.link(outR.input)
+
+    depth.depth.link(outDisp.input)
+
+    q = Queue()
+    ll = Lock()
+    cl = Lock()
+
+    takeImage(q, ll, cl, pipeline, 300)

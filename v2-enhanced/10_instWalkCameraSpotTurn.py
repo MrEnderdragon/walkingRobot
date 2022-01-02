@@ -22,6 +22,7 @@ import copy
 import curves
 import numpy as np
 import genPath
+import log
 
 # import cv2
 # import UVdisp
@@ -71,7 +72,7 @@ turnStepDegs = 10
 
 # leg max outwards reach
 outX = 120
-turnOutX = 70
+turnOutX = 100
 outDist = math.sqrt(outX**2 + lineDist**2)
 outAng = math.atan2(outX, lineDist)
 # leg max inwards reach
@@ -295,7 +296,7 @@ def mainLoop(q, lock):
         regMove.actAll(serial_connection)
         lock.release()
 
-    if len(dPoints) > 1 and dPoints[1] != 0:
+    if len(dPoints) > 1 and abs(dPoints[1]) > np.deg2rad(5):
         tmpRelPos = [[], [], [], []]
         for j in range(4):
             tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight)
@@ -335,11 +336,11 @@ def mainLoop(q, lock):
         for j in range(4):
             legPos[j] = locToGlob((destPos[j][0], destPos[j][1] * ((-1) ** j)), bodyCorners[j], dPoints[1])
 
-        # print(legPos)
+        # log.log(legPos)
 
     for posInd in range(0, min(len(dPoints), 200), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
 
-        # print(dPoints[posInd])
+        # log.log(dPoints[posInd])
         # input()
 
         if not q.empty():
@@ -372,7 +373,7 @@ def mainLoop(q, lock):
 
                 if (curLeg == 0 or curLeg == 1) and refLeg != curLeg:
 
-                    print("trying leg " + str(curLeg) + " as refleg")
+                    log.log("trying leg " + str(curLeg) + " as refleg")
 
                     otherLeg = 1-curLeg
 
@@ -458,16 +459,16 @@ def mainLoop(q, lock):
 
                         amTillRefFind += 1
 
-                    print("old: " + str(amTillRefFind) + "       new: " + str(amTillNew))
+                    log.log("old: " + str(amTillRefFind) + "       new: " + str(amTillNew))
 
                     if amTillNew < amTillRefFind:
                         # set new leg as ref leg
                         refLeg = curLeg
-                        print("set leg " + str(curLeg) + " as refleg")
+                        log.log("set leg " + str(curLeg) + " as refleg")
                         for moveTimerLeg in range(0, 4):
                             moveCountdown[order[(moveTimerLeg+order.index(refLeg)) % 4]] = int(amTillNew * moveTimerLeg / 4)
 
-                    print()
+                    log.log()
 
             if moveCountdown[curLeg] >= 0:
                 moveCountdown[curLeg] -= 1
@@ -481,7 +482,7 @@ def mainLoop(q, lock):
             refFlag = True
 
         if tmpDist > (inDist if refLeg <= 1 else outDist) and refFlag:  # test if reference leg is outside of its maximum range
-            print("out of range")
+            log.log("out of range")
             foundPos = findNext(dPoints, bodyCorners[refLeg], bodyAng, refLeg)
 
             amTill = 0
@@ -710,7 +711,7 @@ def spotTurn(degs):
         rotDegs = (counter * turnStepDegs * (1 if degs > 0 else -1)) if abs(counter * turnStepDegs) < abs(degs) else degs
         rot = np.deg2rad(rotDegs)
 
-        print(rotDegs)
+        log.log(rotDegs)
 
         bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
@@ -753,7 +754,7 @@ def spotTurn(degs):
         for j in range(4):
             execInst(inst(inst_type.abs, globToLoc(legPos[j], bodyCorners[j], rot, j, -turnWalkHeight)), j)
 
-        # print(legPos)
+        # log.log(legPos)
 
         time.sleep(stdDelay)
 
@@ -795,12 +796,12 @@ def findNext(dPoints, cornerCoord, bodyAng, leg):
         # if (diffAng > frontAng)  or (diffAng > PI) or testDist > max(front, back):
         if flag and (diffAng > frontAng or testDist > max(front, back)):
             foundInd = ((toGo - 2) + len(dPoints)) % len(dPoints)
-            print("found for leg " + str(leg) + " " + str(lastFoundP[leg]) + " " + str(foundInd))
+            log.log("found for leg " + str(leg) + " " + str(lastFoundP[leg]) + " " + str(foundInd))
             break
 
         if (not flag) and abs(diffAng) < min(backAng, frontAng) and testDist < max(front, back):
             flag = True
-            print("flag set for leg " + str(leg) + " " + str(lastFoundP[leg]) + " " + str(toGo))
+            log.log("flag set for leg " + str(leg) + " " + str(lastFoundP[leg]) + " " + str(toGo))
 
     foundX = dPoints[foundInd][0]
     foundY = dPoints[foundInd][1]
@@ -864,7 +865,7 @@ def execInst(ins, leg):
             if ins.type == inst_type.abs:
                 for j in range(0, 3):
                     if ins.args[j] is not None:
-                        coords[leg][j] = ins.args[j] * (0.70 if j == 0 and leg % 2 == 1 else 1)
+                        coords[leg][j] = ins.args[j] * (0.71 if j == 0 and leg % 2 == 1 else 1)
                 moveLegs(calcRots(coords[leg], leg), leg)
 
             elif ins.type == inst_type.rel:
@@ -876,7 +877,7 @@ def execInst(ins, leg):
             return
 
         except ValueError:
-            print("incomplete packet! try #" + str(tryy+1))
+            log.log("incomplete packet! try #" + str(tryy+1))
 
     raise ValueError("INCOMPLETE PACKET 3x")
 
@@ -955,7 +956,7 @@ def pltRobot(dPoints, corners, angle, legs):
     for index in range(4):
         tmp += "(" + str(int(legs[index][0])) + "," + str(int(legs[index][1])) + ") "
     
-    print(tmp)
+    log.log(tmp)
 
     fig.canvas.draw()
     # plt.waitforbuttonpress()
@@ -990,11 +991,11 @@ if __name__ == "__main__":
 
     while True:
         while qu.empty():
-            print("path check... empty")
+            log.log("path check... empty")
             time.sleep(waitTime)
 
         while not qu.empty():
-            print("path got")
+            log.log("path got")
             driveCurves = qu.get()
 
         # radius = 70 * 10
@@ -1003,7 +1004,7 @@ if __name__ == "__main__":
         cl.acquire()
 
         if driveCurves is None:
-            print("invalid images, turning 90")
+            log.log("invalid images, turning 90")
 
             rotation = np.deg2rad(-90)
 
@@ -1043,7 +1044,7 @@ if __name__ == "__main__":
 
         cl.release()
 
-        print("loop over")
+        log.log("loop over")
 
         if lastRelPos is None:
             break

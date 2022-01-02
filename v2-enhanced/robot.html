@@ -1,0 +1,137 @@
+<html>
+    <head>
+        <title>{{title}}</title>
+
+        <style>
+            .grid-container {
+                display: grid;
+                grid-template-columns: auto auto auto;
+                width: 100%;
+            }
+
+            .grid-container-container {
+                flex: 1;
+                margin-right: 20px;
+            }
+
+            .grid-item {
+                padding: 2px;
+                font-size: 30px;
+            }
+
+            .img {
+                width: 100%;
+            }
+
+            .log-container {
+                //width: 50%;
+                flex: 1;
+                //position: absolute;
+            }
+
+            .log-place {
+                width: 100%;
+                height: 100%;
+                resize: None
+            }
+
+            .all-container {
+                width: 100%;
+                height: 100%;
+                display: flex;
+            }
+        </style>
+
+    </head>
+    <body>
+<!--        <meta http-equiv="refresh" content="1"/>-->
+
+        <div class="all-container">
+            <div class="grid-container-container">
+                <div class="grid-container">
+                    <div class="grid-item">
+                        <img src="/images/onpath-{{timePath}}.png" alt="path" class="img" id="path">
+                    </div>
+                    <div class="grid-item">
+                        <img src="/images/curvePath-{{timePath}}}.png" alt="curved" class="img" id="curve">
+                    </div>
+                    <div class="grid-item">
+                        <img src="/images/voro-{{timePath}}.png" alt="voro" class="img" id="voro">
+                    </div>
+                    <div class="grid-item">
+                        <img src="/images/col-{{time1}}.png" alt="col" class="img" id="col1">
+                    </div>
+                    <div class="grid-item">
+                        <img src="/images/col-{{time2}}.png" alt="col" class="img" id="col2">
+                    </div>
+                    <div class="grid-item">
+                        <img src="/images/col-{{time3}}.png" alt="col" class="img" id="col3">
+                    </div>
+                    <div class="grid-item">
+                        <img src="/images/depth-{{time1}}.png" alt="depth" class="img" id="depth1">
+                    </div>
+                    <div class="grid-item">
+                        <img src="/images/depth-{{time2}}.png" alt="depth" class="img" id="depth2">
+                    </div>
+                    <div class="grid-item">
+                        <img src="/images/depth-{{time3}}.png" alt="depth" class="img" id="depth3">
+                    </div>
+                </div>
+            </div>
+
+            <div class="log-container">
+                <textarea class="log-place" id="log">
+
+                </textarea>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+
+            function updateText(times){
+                var timess = JSON.parse(times)
+                time1 = timess.time1
+                time2 = timess.time2
+                time3 = timess.time3
+                timePath = timess.timePath
+
+                document.getElementById("path").src = `/images/onpath-${timePath}.png`;
+                document.getElementById("curve").src = `/images/curvePath-${timePath}.png`;
+                document.getElementById("voro").src = `/images/voro-${timePath}.png`;
+
+                document.getElementById("depth1").src = `/images/depth-${time1}.png`;
+                document.getElementById("col1").src = `/images/col-${time1}.png`;
+
+                document.getElementById("depth2").src = `/images/depth-${time2}.png`;
+                document.getElementById("col2").src = `/images/col-${time2}.png`;
+
+                document.getElementById("depth3").src = `/images/depth-${time3}.png`;
+                document.getElementById("col3").src = `/images/col-${time3}.png`;
+            }
+
+            function updateLog(log){
+                var ta = document.getElementById('log');
+                //var tmp = Math.abs(ta.scrollTop - ta.scrollHeight) < 100;
+                ta.value = log;
+                //if (tmp)
+                ta.scrollTop = ta.scrollHeight;
+            }
+
+            function httpGetAsync(theUrl, callback) {
+                var xmlHttp = new XMLHttpRequest();
+                xmlHttp.onreadystatechange = function() {
+                    if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                        callback(xmlHttp.responseText);
+                }
+                xmlHttp.open("GET", theUrl, true); // true for asynchronous
+                xmlHttp.send(null);
+            }
+
+            setInterval(function() {
+                httpGetAsync("time", updateText)
+                httpGetAsync("log", updateLog)
+            }, 1000);
+
+        </script>
+    </body>
+</html>

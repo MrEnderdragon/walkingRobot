@@ -2,6 +2,7 @@ import numpy as np
 import curves
 import rdp
 import math
+import log
 
 
 def gen_path(onPath):
@@ -26,8 +27,8 @@ def gen_path(onPath):
     #     points.append(((contour[ind][0][0] - width/2) * 50, (contour[ind][0][1] - height/2) * 50))
     # tmp += "(" + str(contour[ind][0][0]) + "," + str(contour[ind][0][1]) + "),"
 
-    # print(points)
-    # print(tmp)
+    # log.log(points)
+    # log.log(tmp)
 
     tmp = ""
 
@@ -47,7 +48,7 @@ def gen_path(onPath):
     for ind in range(len(points)):
         tmp += "(" + str(points[ind][0]) + "," + str(points[ind][1]) + "),"
     
-    print(tmp)
+    log.log(tmp)
     
     newCurves = []
     curvedpath = np.zeros((width+1, height+1), dtype=np.bool_)

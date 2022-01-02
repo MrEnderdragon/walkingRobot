@@ -3,6 +3,7 @@ import numpy as np
 import time
 import cv2
 import os
+import log
 
 focalLen = 441.25  # pixels
 ppmm = 1000/3  # pixels per mm, 1p = 3um
@@ -193,7 +194,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     start = time.time()
 
     if verbose:
-        print("starting detect")
+        log.log("starting detect")
 
     for i in range(len(rots)):
         vDisp = vDisps[i][0:360, ...]
@@ -209,7 +210,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
         if len(xsFloor) > (len(xsFloor) + len(xsFloorLess))*floorThresh:
             if verbose:
-                print("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
+                log.log("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
         else:
             mapFloor = np.append(mapFloor, np.floor(scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
 
@@ -272,7 +273,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     if display:
         shellx, shelly, shellz = shellVox
-        print(len(shellx))
+        log.log(len(shellx))
         floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
                                        np.all(mapFloor < maxSize*2 / step, axis=1),
 
@@ -284,7 +285,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
         floorVox = uniqueF[countsF > thresh].T
         floorx, floory, floorz = floorVox
-        # print(len(floorx))
+        # log.log(len(floorx))
         import mayavi.mlab
 
         mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
@@ -298,14 +299,14 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     
     if verbose:
         end = time.time()
-        print(end-start)
-        print("done detect")
+        log.log(end-start)
+        log.log("done detect")
 
     # start = time.time()
 
     if verbose:
         start = time.time()
-        print("starting unknowns")
+        log.log("starting unknowns")
 
     for ind, pos in enumerate(shellUnsc):
 
@@ -352,8 +353,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     
     if verbose:
         end = time.time()
-        print(end-start)
-        print("done unknowns")
+        log.log(end-start)
+        log.log("done unknowns")
 
     shellFlat[shellx, shelly] = 1
 

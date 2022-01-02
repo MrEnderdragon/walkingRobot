@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import math
+import log
 
 
 def SLICdist(image, aCoords, bCoords, s, m):
@@ -44,7 +45,7 @@ def SLIC(image, k, m, its):
 
     for itt in range(its):
 
-        print("slic it" + str(itt+1) + " starting")
+        log.log("slic it" + str(itt+1) + " starting")
 
         pixLab = np.ones((image.shape[0], image.shape[1]), dtype=np.uint8) * -1
         pixDist = np.ones((image.shape[0], image.shape[1]), dtype=np.float_) * np.inf
@@ -87,6 +88,6 @@ def SLIC(image, k, m, its):
 
         c = newC
 
-        print("slic it" + str(itt+1) + " finished")
+        log.log("slic it" + str(itt+1) + " finished")
 
     return pixLab, pixDist, c

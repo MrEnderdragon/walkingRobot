@@ -41,29 +41,44 @@ stdDelay = 0.001
 
 # height of walk line
 walkHeight = 90
-# height of turn line
-turnHeight = 110
 # distance of steps from body
-lineDist = 40
-# distance of steps from body
-turnLineDist = 90
+lineDist = 120
 # how much to lift leg to step
 liftHeight = 40
 # amount to tilt before stepping
 tiltHeight = 10
 
+# height of turn line
+turnWalkHeight = 90
+turnHeight = 90
+# distance of steps from body
+turnLineDist = 90
+turnOffsetDist = 40
+# how much to lift leg to step
+turnLiftHeight = 40
+# amount to tilt before stepping
+turnTiltHeight = 10
+
+turnStepDegs = 10
+
 # leg max outwards reach
 # outX = 120
-outX = 70
+# leg max outwards reach
+outX = 120
+turnOutX = 70
 outDist = math.sqrt(outX**2 + lineDist**2)
 outAng = math.atan2(outX, lineDist)
 # leg max inwards reach
 inX = 50
+turnInX = 50
 inDist = math.sqrt(inX**2 + lineDist**2)
 inAng = math.atan2(inX, lineDist)
 
 # order = [0, 2, 3, 1]  # order to take steps
-order = [0, 1, 3, 2]  # order to take steps
+# order = [0, 1, 3, 2]  # order to take steps
+order = [0, 2, 3, 1]  # order to take steps
+turnOrderPos = [0, 2, 3, 1]  # order to take steps
+turnOrderNeg = [0, 1, 3, 2]  # order to take steps
 
 # program variables V V V
 opposites = [3, 2, 1, 0]  # opposites of every leg
@@ -134,6 +149,21 @@ turnRelLeg = [[outX, turnLineDist-lineDist, -turnHeight],
               [inX, turnLineDist+lineDist, -turnHeight],
               [-outX, turnLineDist-lineDist, -turnHeight]]
 
+relStPos = [[- inX, lineDist],
+            [+ outX - (outX + inX) * 1 / 3, lineDist],
+            [+ inX, lineDist],
+            [- outX + (outX + inX) * 1 / 3, lineDist]]
+
+turnStPos = [[-turnInX, turnLineDist+turnOffsetDist],
+             [turnOutX, turnLineDist-turnOffsetDist],
+             [-turnOutX, turnLineDist-turnOffsetDist],
+             [turnInX, turnLineDist+turnOffsetDist]]
+
+turnStNeg = [[turnOutX, turnLineDist-turnOffsetDist],
+             [-turnInX, turnLineDist+turnOffsetDist],
+             [turnInX, turnLineDist+turnOffsetDist],
+             [-turnOutX, turnLineDist-turnOffsetDist]]
+
 
 refLeg = order[0]
 refFlag = True
@@ -197,9 +227,9 @@ class inst:
 def mainLoop():
     global lastMoved, cornerPoint, refFlag, lastFoundP, lastRelPos, refLeg
 
-    step = -5
+    step = 5
     stepRad = np.deg2rad(step)
-    amTurn = -45
+    amTurn = 45
 
     counter = 0
 
@@ -261,6 +291,70 @@ def mainLoop():
 
         # stepLegs(coords, turnRelLeg)
         input()
+
+def spotTurn(degs):
+    counter = 0
+    turnSt = turnStPos if degs > 0 else turnStNeg
+    turnOrder = turnOrderPos if degs > 0 else turnOrderNeg
+
+    for _ in np.arange(0, int(degs/turnStepDegs)+(1 if degs > 0 else -1), 1 if degs > 0 else -1):
+        moveLeg = turnOrder[counter % len(order)]
+        counter = (counter + 1)
+        rotDegs = (counter * turnStepDegs * (1 if degs > 0 else -1)) if abs(counter * turnStepDegs) < abs(degs) else degs
+        rot = np.deg2rad(rotDegs)
+
+        print(rotDegs)
+
+        bodyCorners = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
+
+        for leg in range(4):
+            bodyCorners[leg] = locToGlob(cornerPoint[leg], [0, 0], rot)
+
+        for leg in range(4):  # move back and tilt
+            if leg == moveLeg:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight - turnTiltHeight)), leg)
+            elif leg == opposites[moveLeg]:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight + turnTiltHeight)), leg)
+            else:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight)), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+
+        for leg in range(4):  # move leg forward
+            if leg == moveLeg:
+                execInst(inst(inst_type.abs, (turnSt[leg][0], turnSt[leg][1], -turnWalkHeight + liftHeight)), leg)
+                legPos[leg] = locToGlob((turnSt[leg][0], turnSt[leg][1] * ((-1) ** leg)), bodyCorners[leg], rot)
+            elif leg == opposites[moveLeg]:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight + turnTiltHeight)), leg)
+            else:
+                execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight)), leg)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
+
+        for j in range(4):
+            execInst(inst(inst_type.abs, globToLoc(legPos[j], bodyCorners[j], rot, j, -turnWalkHeight)), j)
+
+        # print(legPos)
+
+        time.sleep(stdDelay)
+
+        if runRobot:
+            regMove.actAll(serial_connection)
+
+        time.sleep(stdDelay)
+        time.sleep(timePerCycle)
 
 
 def dist(xy1, xy2):
@@ -368,4 +462,6 @@ def globToLoc(glob_p, orig_p, orig_rot, flipY=0, zHeight=0):
 # program start
 if __name__ == "__main__":
     while True:
-        mainLoop()
+        spotTurn(360)
+        input()
+        # mainLoop()
