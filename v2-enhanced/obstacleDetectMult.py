@@ -31,7 +31,7 @@ def processImages(start, end, verbose=False):
     en = end
     
     if verbose:
-        fig = plt.figure('image', figsize=(10,6))
+        fig = plt.figure('image', figsize=(10, 6))
 
     for i in range(st, en+1):
         # Constructing test image
@@ -45,11 +45,11 @@ def processImages(start, end, verbose=False):
         if verbose:
             colour = cv2.imread("colImages/col-" + str(i) + ".png", cv2.IMREAD_GRAYSCALE)
             depthColour = cv2.imread("depthColor/depth-" + str(i) + ".png", cv2.IMREAD_UNCHANGED)
-            fig.add_subplot(3, 3, 3- (i - st))
+            fig.add_subplot(3, 3, 3 - (i - st))
             plt.imshow(colour, cmap='gray')
             plt.axis('off')
             plt.title("image " + str(i))        
-            fig.add_subplot(2, 3, 6- (i - st))
+            fig.add_subplot(2, 3, 6 - (i - st))
             plt.imshow(depthColour)
             plt.axis('off')
             plt.title("depth " + str(i))        
@@ -124,15 +124,15 @@ def processImages(start, end, verbose=False):
         plt.axis('off')
         plt.title("curvespath")
         plt.show()
-        #plt.waitforbuttonpress(0)
-        #plt.close('all')         
+        # plt.waitforbuttonpress(0)
+        # plt.close('all')
         # cv2.imshow("voro", (voro * 255/(400/50)).astype(np.uint8))
         # cv2.imshow("path", (onPath * 255).astype(np.uint8))
         # cv2.imshow("shell", (shellFlat*255).astype(np.uint8))
         # cv2.imshow("obs", (obsFlat*255).astype(np.uint8))
         # cv2.imshow("walk", (walkFlat*255).astype(np.uint8))
         # cv2.imshow("curvedpath", (curvedpath * 255).astype(np.uint8))
-        #cv2.waitKey()
+        # cv2.waitKey()
 
     return newCurves
 
@@ -145,5 +145,5 @@ def takeImage(q, _, __, camSleepTime, **___):
         
 
 if __name__ == "__main__":
-    for ind in range(21, 60):
-        newCurves = processImages(ind*3, ind*3+2, True)
+    for ind in range(15, 60):
+        newCurvess = processImages(ind*3, ind*3+2, True)

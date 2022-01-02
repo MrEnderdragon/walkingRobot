@@ -254,7 +254,6 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         
         uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
         floorheight = np.min(uniqueF[:, 2]) if len(uniqueF) > 0 else 0
-        
 
     floorLessCoords = np.where(np.all([np.all(mapFloorLess > 0, axis=1),
                                        np.all(mapFloorLess < maxSize*2 / step, axis=1),
@@ -290,13 +289,11 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         # log.log(len(floorx))
         import mayavi.mlab
         
-        fig = mayavi.mlab.figure('Point Cloud')
+        # fig = mayavi.mlab.figure('Point Cloud')
 
-        mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", figure=fig, scale_factor=0.8, color=(1, 0, 0))
-        mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", figure=fig, scale_factor=0.8, color=(0, 1, 0))
+        mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube",  scale_factor=0.8, color=(1, 0, 0))
+        mayavi.mlab.points3d(floorx, floory, floorz, mode="cube",  scale_factor=0.8, color=(0, 1, 0))
         mayavi.mlab.show()
-        mayavi.mlab.close('aaa')
-
 
     shellUnsc = unscale(shellVox.T, mid)  # X by 3
     # shellUnsc = unscale(shellVox.T, mid).T  # 3 by X  

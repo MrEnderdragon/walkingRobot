@@ -196,7 +196,7 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                 else:
                     q.put(None)
 
-            except ValueError as e:
+            except ValueError:
                 log.log("ERRORED")
                 log.log(traceback.format_exc())
 
@@ -216,18 +216,18 @@ if __name__ == "__main__":
     atexit.register(exit_handler)
 
     # Create pipeline
-    pipeline = dai.Pipeline()
+    pipelinee = dai.Pipeline()
 
     # Define sources and outputs
-    monoLeft = pipeline.createMonoCamera()
-    monoRight = pipeline.createMonoCamera()
+    monoLeft = pipelinee.createMonoCamera()
+    monoRight = pipelinee.createMonoCamera()
 
-    depth = pipeline.createStereoDepth()
+    depth = pipelinee.createStereoDepth()
 
-    outDisp = pipeline.createXLinkOut()
+    outDisp = pipelinee.createXLinkOut()
     outDisp.setStreamName("depOut")
 
-    outR = pipeline.createXLinkOut()
+    outR = pipelinee.createXLinkOut()
     outR.setStreamName("outR")
 
     # Properties
@@ -252,8 +252,8 @@ if __name__ == "__main__":
 
     depth.depth.link(outDisp.input)
 
-    q = Queue()
+    qq = Queue()
     ll = Lock()
     cl = Lock()
 
-    takeImage(q, ll, cl, pipeline, 300)
+    takeImage(qq, ll, cl, pipelinee, 300)
