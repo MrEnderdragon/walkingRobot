@@ -55,7 +55,7 @@ def getTime():
 @app.route("/log", methods=["GET"])
 def getLog():
     with open("/walking_robot/v2Good/log.txt", "r") as file:
-        logstr = file.read()
+        logstr = file.read().replace("\n", "\r\n")
 
     return logstr
 

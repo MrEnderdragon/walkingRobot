@@ -32,7 +32,8 @@
             .log-place {
                 width: 100%;
                 height: 100%;
-                resize: None
+                resize: None;
+                font-size: 16px;
             }
 
             .all-container {
@@ -53,7 +54,7 @@
                         <img src="/images/onpath-{{timePath}}.png" alt="path" class="img" id="path">
                     </div>
                     <div class="grid-item">
-                        <img src="/images/curvePath-{{timePath}}}.png" alt="curved" class="img" id="curve">
+                        <img src="/images/curvePath-{{timePath}}.png" alt="curved" class="img" id="curve">
                     </div>
                     <div class="grid-item">
                         <img src="/images/voro-{{timePath}}.png" alt="voro" class="img" id="voro">
@@ -79,10 +80,8 @@
                 </div>
             </div>
 
-            <div class="log-container">
-                <textarea class="log-place" id="log">
-
-                </textarea>
+            <div class="log-container" id="logCont">
+                <textarea class="log-place" id="log"></textarea>
             </div>
         </div>
 
@@ -111,10 +110,10 @@
 
             function updateLog(log){
                 var ta = document.getElementById('log');
-                //var tmp = Math.abs(ta.scrollTop - ta.scrollHeight) < 100;
+                var tmp = Math.abs(ta.scrollTop + ta.clientHeight - ta.scrollHeight) < 20;
                 ta.value = log;
-                //if (tmp)
-                ta.scrollTop = ta.scrollHeight;
+                if (tmp)
+                    ta.scrollTop = ta.scrollHeight;
             }
 
             function httpGetAsync(theUrl, callback) {
@@ -132,6 +131,8 @@
                 httpGetAsync("log", updateLog)
             }, 1000);
 
+            var ta = document.getElementById('log');
+            ta.scrollTop = ta.scrollHeight;
         </script>
     </body>
 </html>
