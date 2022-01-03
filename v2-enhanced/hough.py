@@ -64,25 +64,25 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
 
     # Classic straight-line Hough transform
     # Set a precision of 0.5 degree.
-    tested_angles = np.linspace(-np.pi / 4, np.pi / 4, 360, endpoint=False)
+    tested_angles = np.concatenate((np.linspace(-np.pi / 4, -np.pi/12, 165, endpoint=False),np.linspace(np.pi/12, np.pi/4, 165, endpoint=False)))
     h, theta, d = hough_line(vDisp, theta=tested_angles)
 
-    for _, angle, dist in zip(*hough_line_peaks(h, theta, d)):
-        if -(args["vertLimit"] if "vertLimit" in args else 15) < np.rad2deg(angle) < (args["vertLimit"] if "vertLimit" in args else 15):
-            (x0, y0) = dist * np.array([np.cos(angle), np.sin(angle)])
-            c = -math.sin(angle)
-            s = math.cos(angle)
-
-            p1 = (int(x0 - c * 4096), int(y0 - s * 4096))
-            p2 = (int(x0 + c * 4096), int(y0 + s * 4096))
-
-            vDisp = cv2.line(vDisp, p1, p2, (0,), thickness=5)
-
-    if verbose:
-        log.log("hough2 start")
-
-    tested_angles = np.linspace(-np.pi / 4, np.pi / 4, 360, endpoint=False)
-    h, theta, d = hough_line(vDisp, theta=tested_angles)
+    # for _, angle, dist in zip(*hough_line_peaks(h, theta, d)):
+    #     if -(args["vertLimit"] if "vertLimit" in args else 15) < np.rad2deg(angle) < (args["vertLimit"] if "vertLimit" in args else 15):
+    #         (x0, y0) = dist * np.array([np.cos(angle), np.sin(angle)])
+    #         c = -math.sin(angle)
+    #         s = math.cos(angle)
+    #
+    #         p1 = (int(x0 - c * 4096), int(y0 - s * 4096))
+    #         p2 = (int(x0 + c * 4096), int(y0 + s * 4096))
+    #
+    #         vDisp = cv2.line(vDisp, p1, p2, (0,), thickness=5)
+    #
+    # if verbose:
+    #     log.log("hough2 start")
+    #
+    # tested_angles = np.linspace(-np.pi / 4, np.pi / 4, 360, endpoint=False)
+    # h, theta, d = hough_line(vDisp, theta=tested_angles)
 
     bestAng = 0
     bestDist = 0

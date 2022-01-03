@@ -51,7 +51,7 @@ def gen_path(onPath):
     log.log(tmp)
     
     newCurves = []
-    curvedpath = np.zeros((width+1, height+1), dtype=np.bool_)
+    curvedpath = np.zeros((width, height), dtype=np.bool_)
     
     if len(points) > 2:
         enddX = (points[0][0] + points[1][0]) / 2
@@ -60,7 +60,8 @@ def gen_path(onPath):
         newCurves.append(curv)
 
         for i in curv.renderPoints():
-            curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
+            if int(width / 2 - i[1] / 50) < width and int(i[0] / 50 - height / 2) < height:
+                curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
 
         for ind in range(1, len(points) - 1):
             sttX = (points[ind - 1][0] + points[ind][0]) / 2
@@ -69,7 +70,8 @@ def gen_path(onPath):
             enddY = (points[ind + 1][1] + points[ind][1]) / 2
             curv = curves.quadBezier((sttX, sttY), points[ind], (enddX, enddY))
             for i in curv.renderPoints():
-                curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
+                if int(width / 2 - i[1] / 50) < width and int(i[0] / 50 - height / 2) < height:
+                    curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
             newCurves.append(curv)
 
         sttX = (points[len(points) - 2][0] + points[len(points) - 1][0]) / 2
@@ -80,14 +82,16 @@ def gen_path(onPath):
         newCurves.append(curv)
 
         for i in curv.renderPoints():
-            curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
+            if int(width / 2 - i[1] / 50) < width and int(i[0] / 50 - height / 2) < height:
+                curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
 
     elif len(points) > 1:
         curv = curves.quadBezier(points[0], ((points[1][0] + points[0][0]) / 2,
                                              (points[1][1] + points[0][1]) / 2), points[1])
         newCurves.append(curv)
         for i in curv.renderPoints():
-            curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
+            if int(width / 2 - i[1] / 50) < width and int(i[0] / 50 - height / 2) < height:
+                curvedpath[int(width / 2 - i[1] / 50), int(i[0] / 50 - height / 2)] = 1
     else:
         pass
 

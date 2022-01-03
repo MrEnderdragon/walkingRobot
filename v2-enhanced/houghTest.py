@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
         # Classic straight-line Hough transform
         # Set a precision of 0.5 degree.
-        tested_angles = np.linspace(-np.pi / 4, np.pi / 4, 360, endpoint=False)
+        tested_angles = np.concatenate((np.linspace(-np.pi / 4, -np.pi/20, 170, endpoint=False),np.linspace(np.pi/20, np.pi/4, 170, endpoint=False)))
         h, theta, d = hough_line(image, theta=tested_angles)
 
         # vertMask = np.zeros(image.shape, dtype="uint8")+255
@@ -54,23 +54,23 @@ if __name__ == "__main__":
         #     tested_angles = np.linspace(-np.pi / 4, np.pi / 4, 360, endpoint=False)
         #     h, theta, d = hough_line(image, theta=tested_angles)
 
-        for _, angle, dist in zip(*hough_line_peaks(h, theta, d)):
-            if -15 < np.rad2deg(angle) < 15:
-                (x0, y0) = dist * np.array([np.cos(angle), np.sin(angle)])
-                # slope = np.tan(angle + np.pi / 2)
-                # p1 = (4000, math.floor((0-x0)*slope + y0))
-                # p2 = (math.floor((0-y0)/slope + x0), 0)
-                c = -math.sin(angle)
-                s = math.cos(angle)
-
-                p1 = (int(x0 - c * 4096), int(y0 - s * 4096))
-                p2 = (int(x0 + c * 4096), int(y0 + s * 4096))
-
-                image = cv2.line(image, p1, p2, (0,), thickness=5)
-                bad = True
-
-        tested_angles = np.linspace(-np.pi / 4, np.pi / 4, 360, endpoint=False)
-        h, theta, d = hough_line(image, theta=tested_angles)
+        # for _, angle, dist in zip(*hough_line_peaks(h, theta, d)):
+        #     if -15 < np.rad2deg(angle) < 15:
+        #         (x0, y0) = dist * np.array([np.cos(angle), np.sin(angle)])
+        #         # slope = np.tan(angle + np.pi / 2)
+        #         # p1 = (4000, math.floor((0-x0)*slope + y0))
+        #         # p2 = (math.floor((0-y0)/slope + x0), 0)
+        #         c = -math.sin(angle)
+        #         s = math.cos(angle)
+        #
+        #         p1 = (int(x0 - c * 4096), int(y0 - s * 4096))
+        #         p2 = (int(x0 + c * 4096), int(y0 + s * 4096))
+        #
+        #         image = cv2.line(image, p1, p2, (0,), thickness=5)
+        #         bad = True
+        #
+        # tested_angles = np.linspace(-np.pi / 4, -np.pi/12, 170, endpoint=False)
+        # h, theta, d = hough_line(image, theta=tested_angles)
 
         # Generating figure 1
         fig, axes = plt.subplots(1, 3, figsize=(15, 6))
