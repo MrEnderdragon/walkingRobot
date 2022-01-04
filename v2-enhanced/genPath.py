@@ -91,7 +91,7 @@ def gen_path(onPath):
     else:
         pass
 
-    return newCurves, curvedpath
+    return newCurves, curvedpath, points
 
 
 def generate1(linePoints, **args):

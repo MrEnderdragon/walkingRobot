@@ -109,7 +109,7 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     if verbose:
         log.log("voronoi start")
 
-    contours, _ = cv2.findContours((walkMap if ignoreDia else walkMapD).astype(np.uint8)*255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours((obsNoDialate if ignoreDia else obstacles).astype(np.uint8)*255, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
     unwalkCoords = []
     for contour in contours:

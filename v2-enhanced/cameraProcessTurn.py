@@ -184,18 +184,18 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                 log.log("a* done")
 
                 # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
-                newCurves, curvedpath = genPath.gen_path(path)
+                newCurves, curvedpath, simpPath = genPath.gen_path(path)
 
-                if len(path) <= 1 or aStar.euclid(path[len(path)-1], (0, 0)) < minSee + 50 or path[1][0] < 0:
+                if len(simpPath) <= 1 or aStar.euclid(simpPath[len(simpPath)-1], (0, 0)) < minSee + 50 or simpPath[1][0] < 0:
                     valid = False
 
-                if not len(path) <= 1:
-                    log.log("INVALID: SHELL LENGTH < 5")
+                if len(simpPath) <= 1:
+                    log.log("INVALID: PATH TOO SHORT")
 
-                elif not aStar.euclid(path[len(path)-1], (0, 0)) < minSee + 50:
+                elif aStar.euclid(simpPath[len(simpPath)-1], (0, 0)) < minSee + 50:
                     log.log("INVALID: PATH LENGTH < MINSEE")
 
-                elif not path[1][0] < 0:
+                elif simpPath[1][0] < 0:
                     log.log("INVALID: WALKING BACKWARDS")
 
                 log.log("curve points done")
