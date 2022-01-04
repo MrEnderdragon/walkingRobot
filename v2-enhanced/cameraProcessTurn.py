@@ -83,12 +83,12 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                 depQ.get()  # blocking call, will wait until a new data has arrived
                 rQ.get()
 
-                time.sleep(1)
+                time.sleep(0.5)
 
                 depQ.get()  # blocking call, will wait until a new data has arrived
                 rQ.get()
 
-                time.sleep(1)
+                time.sleep(0.5)
 
                 curTime = int(time.time())
                 # f = open("images/latestTime.txt", "w")

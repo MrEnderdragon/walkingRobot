@@ -92,13 +92,21 @@ turnOrderNeg = [0, 1, 3, 2]  # order to take steps
 # program variables V V V
 opposites = [3, 2, 1, 0]  # opposites of every leg
 
-# initial starting coordinates
+# relative coordinates of legs
 coords = [
     [outX, lineDist, -walkHeight],
     [outX, lineDist, -walkHeight],
     [inX, lineDist, -walkHeight],
     [inX, lineDist, -walkHeight]
 ]
+
+# global coordinates of legs
+# globCoords = [
+#     [height / 2 - inX, width / 2 + lineDist],
+#     [height / 2 + outX - (outX + inX) * 1 / 3, -width / 2 - lineDist],
+#     [-height / 2 + inX, width / 2 + lineDist],
+#     [-height / 2 - outX + (outX + inX) * 1 / 3, -width / 2 - lineDist]
+# ]
 
 # motor ids
 legId = [
@@ -286,7 +294,7 @@ def mainLoop(q, lock):
 
     lock.acquire()
     for j in range(4):
-        moveLegs(calcRots(globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight), j), j)
+        execInst(inst(inst_type.abs, globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight)), j)
     lock.release()
 
     time.sleep(stdDelay)
@@ -297,9 +305,9 @@ def mainLoop(q, lock):
         lock.release()
 
     if len(dPoints) > 1 and abs(dPoints[1]) > np.deg2rad(5):
-        tmpRelPos = [[], [], [], []]
-        for j in range(4):
-            tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight)
+        # tmpRelPos = [[], [], [], []]
+        # for j in range(4):
+        #     tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], 0, j, -walkHeight)
 
         destPos = turnStPos if dPoints[1] > 0 else turnStNeg
 
@@ -307,14 +315,16 @@ def mainLoop(q, lock):
             pltRobot(dPoints, bodyCorners, 0, legPos)
 
         lock.acquire()
-        stepLegs(tmpRelPos, destPos, walkHeight, turnWalkHeight)
+        # stepLegs(tmpRelPos, destPos, walkHeight, turnWalkHeight)
+        stepLegs(coords, destPos, walkHeight, turnWalkHeight)
         lock.release()
 
         if drawRobot:
             pltRobot(dPoints, bodyCorners, 0, legPos)
 
         for j in range(4):
-            legPos[j] = locToGlob((destPos[j][0], destPos[j][1] * ((-1) ** j)), bodyCorners[j], 0)
+            # legPos[j] = locToGlob((destPos[j][0], destPos[j][1] * ((-1) ** j)), bodyCorners[j], 0)
+            legPos[j] = locToGlob((coords[j][0], coords[j][1] * ((-1) ** j)), bodyCorners[j], 0)
 
         lock.acquire()
         spotTurn(np.rad2deg(dPoints[1]))
@@ -323,18 +333,17 @@ def mainLoop(q, lock):
         for leg in range(4):
             bodyCorners[leg] = locToGlob(cornerPoint[leg], [0, 0], dPoints[1])
 
-        tmpRelPos = [[], [], [], []]
-        for j in range(4):
-            tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], dPoints[1], j, -walkHeight)
-
-        destPos = relStPos
+        # tmpRelPos = [[], [], [], []]
+        # for j in range(4):
+        #     tmpRelPos[j] = globToLoc(legPos[j], bodyCorners[j], dPoints[1], j, -walkHeight)
 
         lock.acquire()
-        stepLegs(tmpRelPos, relStPos, turnWalkHeight, walkHeight)
+        # stepLegs(tmpRelPos, relStPos, turnWalkHeight, walkHeight)
+        stepLegs(coords, relStPos, turnWalkHeight, walkHeight)
         lock.release()
 
         for j in range(4):
-            legPos[j] = locToGlob((destPos[j][0], destPos[j][1] * ((-1) ** j)), bodyCorners[j], dPoints[1])
+            legPos[j] = locToGlob((coords[j][0], coords[j][1] * ((-1) ** j)), bodyCorners[j], dPoints[1])
 
         # log.log(legPos)
 
@@ -1012,39 +1021,41 @@ if __name__ == "__main__":
         if driveCurves is None:
             log.log("invalid images, turning 90")
 
-            rotation = np.deg2rad(-90)
+            rotRad = np.deg2rad(-90)
 
             bodyCornerss = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
 
             for legg in range(4):
                 bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], 0)
 
-            tmpRelPoss = [[], [], [], []]
+            # tmpRelPoss = [[], [], [], []]
+            # for k in range(4):
+            #     tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], 0, k, -walkHeight)
+
+            destPoss = turnStPos if rotRad > 0 else turnStNeg
+
+            stepLegs(coords, destPoss, walkHeight, turnWalkHeight)
+
             for k in range(4):
-                tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], 0, k, -walkHeight)
+                # legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+                legPos[k] = locToGlob((coords[k][0], coords[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
 
-            destPoss = turnStPos if rotation else turnStNeg
-
-            stepLegs(tmpRelPoss, destPoss, walkHeight, turnWalkHeight)
-
-            for k in range(4):
-                legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
-
-            spotTurn(np.rad2deg(rotation))
+            spotTurn(-90)
 
             for legg in range(4):
-                bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], rotation)
+                bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], rotRad)
 
-            tmpRelPoss = [[], [], [], []]
+            # tmpRelPoss = [[], [], [], []]
+            # for k in range(4):
+            #     tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], rotRad, k, -walkHeight)
+
+            # destPoss = relStPos
+
+            stepLegs(coords, relStPos, turnWalkHeight, walkHeight)
+
             for k in range(4):
-                tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], rotation, k, -walkHeight)
-
-            destPoss = relStPos
-
-            stepLegs(tmpRelPoss, relStPos, turnWalkHeight, walkHeight)
-
-            for k in range(4):
-                legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+                # legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+                legPos[k] = locToGlob((coords[k][0], coords[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
         else:
             mainLoop(qu, ll)
 
@@ -1060,6 +1071,7 @@ if __name__ == "__main__":
             bodyCornersTmp[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
             
         for i in range(4):
-            legPos[i] = locToGlob((lastRelPos[i][0], lastRelPos[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
+            # legPos[i] = locToGlob((lastRelPos[i][0], lastRelPos[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
+            legPos[i] = locToGlob((coords[i][0], coords[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
 
         # break

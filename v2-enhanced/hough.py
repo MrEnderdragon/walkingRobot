@@ -2,7 +2,6 @@ import numpy as np
 import cv2
 from skimage.transform import hough_line, hough_line_peaks
 import slic
-import math
 import time
 import log
 
@@ -64,7 +63,7 @@ def hough(disp, vDisp, slicc=False, slicRef=None, verbose=False, **args):
 
     # Classic straight-line Hough transform
     # Set a precision of 0.5 degree.
-    tested_angles = np.concatenate((np.linspace(-np.pi / 4, -np.pi/12, 165, endpoint=False),np.linspace(np.pi/12, np.pi/4, 165, endpoint=False)))
+    tested_angles = np.concatenate((np.linspace(-np.pi / 4, -np.pi/12, 165, endpoint=False), np.linspace(np.pi/12, np.pi/4, 165, endpoint=False)))
     h, theta, d = hough_line(vDisp, theta=tested_angles)
 
     # for _, angle, dist in zip(*hough_line_peaks(h, theta, d)):

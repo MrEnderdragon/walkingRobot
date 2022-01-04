@@ -100,7 +100,7 @@ def processImages(start, end, verbose=False):
         plt.title("shell")        
 
         fig.add_subplot(2, 3, 2)
-        obsDisp =(obsFlat*255).astype(np.uint8)
+        obsDisp = (obsFlat*255).astype(np.uint8)
         obsDisp[np.where(curvedpath > 0)] = 100
         plt.imshow(obsDisp)
         plt.axis('off')
