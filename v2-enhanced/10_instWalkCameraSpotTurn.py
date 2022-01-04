@@ -272,9 +272,9 @@ def initVariables():
     refLeg = order[0]
     refFlag = True
     
-    lastMoved = False
+    # lastMoved = False
     
-    moveCountdown = [-1, -1, -1, -1]
+    # moveCountdown = [-1, -1, -1, -1]
     
     lastFoundP = [0, 0, 0, 0]
 
@@ -639,17 +639,19 @@ def stepLegs(curRelPos, newRelPos, curHeight, newHeight):
     time.sleep(stdDelay)
     time.sleep(timePerCycle)
 
-    output = turnOrderPos
-    for index, x in enumerate(sorted(range(len(newRelPos)), key=lambda y: -newRelPos[y][0] * (-1 if y > 1 else 1))):
+    output = copy.deepcopy(turnOrderPos)
+    # for index, x in enumerate(sorted(range(len(newRelPos)), key=lambda y: -newRelPos[y][0] * (-1 if y > 1 else 1))):
+    #     output[index] = x
+    for index, x in enumerate(sorted(range(len(curRelPos)), key=lambda y: curRelPos[y][0] * (-1 if y > 1 else 1))):
         output[index] = x
 
     for moveLeg in output:
 
         for leg in range(4):  # move back and tilt
             if leg == moveLeg:
-                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight - tiltHeight]), leg)
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight - turnTiltHeight]), leg)
             elif leg == opposites[moveLeg]:
-                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + tiltHeight]), leg)
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + turnTiltHeight]), leg)
             else:
                 execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight]), leg)
 
@@ -664,9 +666,9 @@ def stepLegs(curRelPos, newRelPos, curHeight, newHeight):
 
         for leg in range(4):  # move back and tilt
             if leg == moveLeg:
-                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + liftHeight]), leg)
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + turnLiftHeight]), leg)
             elif leg == opposites[moveLeg]:
-                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + tiltHeight]), leg)
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + turnTiltHeight]), leg)
             else:
                 execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight]), leg)
 
@@ -683,9 +685,9 @@ def stepLegs(curRelPos, newRelPos, curHeight, newHeight):
             if leg == moveLeg:
                 curRelPos[leg] = copy.deepcopy(newRelPos[leg])
 
-                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + liftHeight]), leg)
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + turnLiftHeight]), leg)
             elif leg == opposites[moveLeg]:
-                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + tiltHeight]), leg)
+                execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight + turnTiltHeight]), leg)
             else:
                 execInst(inst(inst_type.abs, [curRelPos[leg][0], curRelPos[leg][1], -curHeight]), leg)
 
@@ -713,9 +715,11 @@ def spotTurn(degs):
     counter = 0
     turnSt = turnStPos if degs > 0 else turnStNeg
     turnOrder = turnOrderPos if degs > 0 else turnOrderNeg
+    log.log("order: " + str(turnOrder))
 
     for _ in np.arange(0, int(degs/turnStepDegs)+(1 if degs > 0 else -1), 1 if degs > 0 else -1):
-        moveLeg = turnOrder[counter % len(order)]
+        moveLeg = turnOrder[counter % len(turnOrder)]
+        log.log("turning " + str(moveLeg))
         counter = (counter + 1)
         rotDegs = (counter * turnStepDegs * (1 if degs > 0 else -1)) if abs(counter * turnStepDegs) < abs(degs) else degs
         rot = np.deg2rad(rotDegs)
@@ -745,7 +749,7 @@ def spotTurn(degs):
 
         for leg in range(4):  # move leg forward
             if leg == moveLeg:
-                execInst(inst(inst_type.abs, (turnSt[leg][0], turnSt[leg][1], -turnWalkHeight + liftHeight)), leg)
+                execInst(inst(inst_type.abs, (turnSt[leg][0], turnSt[leg][1], -turnWalkHeight + turnLiftHeight)), leg)
                 legPos[leg] = locToGlob((turnSt[leg][0], turnSt[leg][1] * ((-1) ** leg)), bodyCorners[leg], rot)
             elif leg == opposites[moveLeg]:
                 execInst(inst(inst_type.abs, globToLoc(legPos[leg], bodyCorners[leg], rot, leg, -turnWalkHeight + turnTiltHeight)), leg)
@@ -1016,6 +1020,9 @@ if __name__ == "__main__":
         # radius = 70 * 10
         # driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0)), curves.quadBezier((radius, 0), (radius+radius, 0), (radius+radius, -radius))]
 
+        # radius = 70 * 10
+        # driveCurves = [curves.quadBezier((0, 0), (radius/2, radius/2), (radius, radius))]
+
         cl.acquire()
 
         if driveCurves is None:
@@ -1075,3 +1082,4 @@ if __name__ == "__main__":
             legPos[i] = locToGlob((coords[i][0], coords[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
 
         # break
+        # input()

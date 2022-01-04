@@ -69,6 +69,11 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
         p = GPIO.PWM(servoPIN, 50)  # GPIO 17 for PWM with 50Hz
         p.start(0)
 
+        depQ.get()  # blocking call, will wait until a new data has arrived
+        rQ.get()
+
+        time.sleep(0.5)
+
         while True:
             camLock.acquire()
             lock.acquire()
@@ -79,11 +84,6 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                 deps = []
                 disps = []
                 rots = []
-
-                depQ.get()  # blocking call, will wait until a new data has arrived
-                rQ.get()
-
-                time.sleep(0.5)
 
                 depQ.get()  # blocking call, will wait until a new data has arrived
                 rQ.get()
@@ -108,7 +108,7 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
 
                     setAngle(rot + 90, p)
 
-                    time.sleep(1)
+                    time.sleep(0.2)
 
                     inDisp = depQ.get()  # blocking call, will wait until a new data has arrived
 

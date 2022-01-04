@@ -358,12 +358,12 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     shellFlat[shellx, shelly] = 1
 
-    valid = len(shellx) > 5
+    valid = len(shellx) > 5 and amInval < 2
 
     if not len(shellx) > 5 and verbose:
         log.log("INVALID: SHELL LENGTH < 5")
 
-    # if not amInval < 2 and verbose:
-    #     log.log("INVALID: VALID PICTURES < 2")
+    if not amInval < 2 and verbose:
+        log.log("INVALID: VALID PICTURES < 2")
 
     return shellFlat, obsFlatB, walkFlat, valid
