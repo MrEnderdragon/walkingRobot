@@ -972,8 +972,8 @@ def pltRobot(dPoints, corners, angle, legs):
     log.log(tmp)
 
     fig.canvas.draw()
-    # plt.waitforbuttonpress()
-    plt.pause(0.1)
+    plt.waitforbuttonpress()
+    #plt.pause(0.1)
     
 
 # program start
@@ -996,7 +996,7 @@ if __name__ == "__main__":
                     kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
                     daemon=True)
     else:
-        p = Process(target=obstacleDetectMult.takeImage, args=(qu, ll, None, camSleepTime),
+        p = Process(target=obstacleDetectMult.takeImage, args=(qu, ll, cl, None, camSleepTime),
                     kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
                     daemon=True)
 
