@@ -924,7 +924,7 @@ def pltRobot(dPoints, corners, angle, legs):
         yPoints.append(dPoints[index][1])
 
     graph1.clear()
-    graph1.axis([-500, 2000, -2000, 500])
+    graph1.axis([-2000, 2000, -2000, 2000])
     graph1.plot(xPoints, yPoints, 'r-')
     
     xPoints = []
@@ -960,7 +960,7 @@ def pltRobot(dPoints, corners, angle, legs):
 
     fig.canvas.draw()
     # plt.waitforbuttonpress()
-    plt.pause(0.02)
+    plt.pause(0.1)
     
 
 # program start

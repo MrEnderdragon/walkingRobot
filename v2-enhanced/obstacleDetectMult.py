@@ -73,7 +73,7 @@ def processImages(start, end, verbose=False):
     onPath, path, closestNode, voro, walkmap = \
         aStar.aStar(shellFlat, obsFlat, walkFlat, None,
                     verbose=True,
-                    distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth, voroMax=600, 
+                    distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=(robotWidth + 50), voroMax=600, 
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
     # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
@@ -100,7 +100,9 @@ def processImages(start, end, verbose=False):
         plt.title("shell")        
 
         fig.add_subplot(2, 3, 2)
-        plt.imshow((obsFlat*255).astype(np.uint8))
+        obsDisp =(obsFlat*255).astype(np.uint8)
+        obsDisp[np.where(curvedpath > 0)] = 100
+        plt.imshow(obsDisp)
         plt.axis('off')
         plt.title("obs")        
 
@@ -145,5 +147,5 @@ def takeImage(q, _, __, camSleepTime, **___):
         
 
 if __name__ == "__main__":
-    for ind in range(54, 60):
+    for ind in range(52, 60):
         newCurvess = processImages(ind*3, ind*3+2, True)
