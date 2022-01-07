@@ -64,7 +64,7 @@ def processImages(start, end, verbose=False):
         plt.show(block=False)
 
     start = time.time()
-    shellFlat, obsFlat, walkFlat, _ = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False)
+    shellFlat, obsFlat, walkFlat, _ = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, True)
     # onPath, path, closestNode, voro, walkmap = \
     #     aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
     #                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
