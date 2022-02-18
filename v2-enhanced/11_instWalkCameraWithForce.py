@@ -55,8 +55,8 @@ walkHeight = 90
 # distance of steps from body
 lineDist = 120
 # how much to lift leg to step
-liftHeight = 40
-# liftHeight = 80
+# liftHeight = 40
+liftHeight = 80
 # amount to tilt before stepping
 tiltHeight = 10
 
@@ -283,7 +283,7 @@ def initVariables():
 
 
 # Main loop
-def mainLoop(q, lock):
+def mainLoop(q, lock, **args):
     global lastMoved, cornerPoint, refFlag, lastFoundP, lastRelPos, refLeg
 
     dPoints = genPath.generate(driveCurves, driveAcc=driveAcc)
@@ -347,6 +347,10 @@ def mainLoop(q, lock):
 
         for j in range(4):
             legPos[j] = locToGlob((coords[j][0], coords[j][1] * ((-1) ** j)), bodyCorners[j], dPoints[1])
+
+        # log.log(legPos)
+
+        input() if ("inp" in args and args["inp"]) else None
 
     for posInd in range(0, min(len(dPoints)-30, 200), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
 
@@ -977,6 +981,34 @@ def pltRobot(dPoints, corners, angle, legs):
     plt.pause(0.1)
 
 
+def driveLine(rad): return [curves.quadBezier((0, 0), (rad/2, 0), (rad, 0))]
+
+
+def driveTurnLine(turn, rad): return [curves.quadBezier((0, 0), (rad*math.cos(math.radians(turn))/2, rad*math.sin(math.radians(turn))/2), (rad*math.cos(math.radians(turn)), rad*math.sin(math.radians(turn))))]
+
+
+def driveTurnLineSmooth(rad1, turn, rad2): return [
+    curves.quadBezier((0, 0),
+                      (rad1/4, 0),
+                      (rad1/2, 0)),
+
+    curves.quadBezier((rad1/2, 0),
+                      (rad1, 0),
+                      (rad1 + rad2*math.cos(math.radians(turn))/2, rad2*math.sin(math.radians(turn))/2)),
+
+    curves.quadBezier((rad1 + rad2*math.cos(math.radians(turn))/2, rad2*math.sin(math.radians(turn))/2),
+                      (rad1 + rad2*math.cos(math.radians(turn))*3/4, rad2*math.sin(math.radians(turn))*3/4),
+                      (rad1 + rad2 * math.cos(math.radians(turn)), rad2 * math.sin(math.radians(turn))))
+]
+
+
+def driveQuatCircleCW(rad): return [curves.quadBezier((0, 0), (rad, 0), (rad, -rad))]
+
+
+# forceToDrive = driveLine(300*10)
+forceToDrive = None
+
+
 # program start
 if __name__ == "__main__":
     import atexit
@@ -992,95 +1024,115 @@ if __name__ == "__main__":
 
     mainLoop(qu, ll)
 
-    if runCamera:
-        p = Process(target=cameraProcessTurn.takeImageLidar, args=(qu, ll, cl, pipeline, camSleepTime),
-                    kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
-                    daemon=True)
+    if forceToDrive is not None:
+        while True:
+            input()
+            driveCurves = forceToDrive
+
+            mainLoop(qu, ll, inp=True)
+
+            log.log("loop over")
+
+            if lastRelPos is None:
+                break
+
+            bodyCornersTmp = [[], [], [], []]
+            for ind in range(4):
+                bodyCornersTmp[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
+
+            for i in range(4):
+                legPos[i] = locToGlob((coords[i][0], coords[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
+
     else:
-        p = Process(target=obstacleDetectMult.takeImage, args=(qu, ll, None, camSleepTime),
-                    kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
-                    daemon=True)
-
-    p.start()
-
-    if drawRobot:
-        fig = plt.figure()
-        graph1 = fig.add_subplot(1, 1, 1)
-
-        graph1.axis([-500, 2000, -2000, 500])
-
-    while True:
-        while qu.empty():
-            log.log("path check... empty")
-            time.sleep(waitTime)
-
-        while not qu.empty():
-            log.log("path got")
-            driveCurves = qu.get()
-
-        # radius = 70 * 10
-        # driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0)), curves.quadBezier((radius, 0), (radius+radius, 0), (radius+radius, -radius))]
-
-        # radius = 70 * 10
-        # driveCurves = [curves.quadBezier((0, 0), (radius/2, radius/2), (radius, radius))]
-
-        cl.acquire()
-
-        if driveCurves is None:
-            log.log("invalid images, turning 90")
-
-            rotRad = np.deg2rad(-90)
-
-            bodyCornerss = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
-
-            for legg in range(4):
-                bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], 0)
-
-            # tmpRelPoss = [[], [], [], []]
-            # for k in range(4):
-            #     tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], 0, k, -walkHeight)
-
-            destPoss = turnStPos if rotRad > 0 else turnStNeg
-
-            stepLegs(coords, destPoss, walkHeight, turnWalkHeight)
-
-            for k in range(4):
-                # legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
-                legPos[k] = locToGlob((coords[k][0], coords[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
-
-            spotTurn(-90)
-
-            for legg in range(4):
-                bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], rotRad)
-
-            # tmpRelPoss = [[], [], [], []]
-            # for k in range(4):
-            #     tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], rotRad, k, -walkHeight)
-
-            # destPoss = relStPos
-
-            stepLegs(coords, relStPos, turnWalkHeight, walkHeight)
-
-            for k in range(4):
-                # legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
-                legPos[k] = locToGlob((coords[k][0], coords[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+        if runCamera:
+            p = Process(target=cameraProcessTurn.takeImageLidar, args=(qu, ll, cl, pipeline, camSleepTime),
+                        kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
+                        daemon=True)
         else:
-            mainLoop(qu, ll)
+            p = Process(target=obstacleDetectMult.takeImage, args=(qu, ll, None, camSleepTime),
+                        kwargs={"flagWaitTime": 1, "focalLen": focalLen, "baseline": baseline, "robotWidth": width/2+lineDist},
+                        daemon=True)
 
-        cl.release()
+        p.start()
 
-        log.log("loop over")
+        if drawRobot:
+            fig = plt.figure()
+            graph1 = fig.add_subplot(1, 1, 1)
 
-        if lastRelPos is None:
-            break
+            graph1.axis([-500, 2000, -2000, 500])
 
-        bodyCornersTmp = [[], [], [], []]
-        for ind in range(4):
-            bodyCornersTmp[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
+        while True:
+            while qu.empty():
+                log.log("path check... empty")
+                time.sleep(waitTime)
 
-        for i in range(4):
-            # legPos[i] = locToGlob((lastRelPos[i][0], lastRelPos[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
-            legPos[i] = locToGlob((coords[i][0], coords[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
+            while not qu.empty():
+                log.log("path got")
+                driveCurves = qu.get()
 
-        # break
-        # input()
+            # radius = 70 * 10
+            # driveCurves = [curves.quadBezier((0, 0), (radius/2, 0), (radius, 0)), curves.quadBezier((radius, 0), (radius+radius, 0), (radius+radius, -radius))]
+
+            # radius = 70 * 10
+            # driveCurves = [curves.quadBezier((0, 0), (radius/2, radius/2), (radius, radius))]
+
+            cl.acquire()
+
+            if driveCurves is None:
+                log.log("invalid images, turning 90")
+
+                rotRad = np.deg2rad(-90)
+
+                bodyCornerss = [[], [], [], []]  # topLeft, topRight, botLeft, botRight
+
+                for legg in range(4):
+                    bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], 0)
+
+                # tmpRelPoss = [[], [], [], []]
+                # for k in range(4):
+                #     tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], 0, k, -walkHeight)
+
+                destPoss = turnStPos if rotRad > 0 else turnStNeg
+
+                stepLegs(coords, destPoss, walkHeight, turnWalkHeight)
+
+                for k in range(4):
+                    # legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+                    legPos[k] = locToGlob((coords[k][0], coords[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+
+                spotTurn(-90)
+
+                for legg in range(4):
+                    bodyCornerss[legg] = locToGlob(cornerPoint[legg], [0, 0], rotRad)
+
+                # tmpRelPoss = [[], [], [], []]
+                # for k in range(4):
+                #     tmpRelPoss[k] = globToLoc(legPos[k], bodyCornerss[k], rotRad, k, -walkHeight)
+
+                # destPoss = relStPos
+
+                stepLegs(coords, relStPos, turnWalkHeight, walkHeight)
+
+                for k in range(4):
+                    # legPos[k] = locToGlob((destPoss[k][0], destPoss[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+                    legPos[k] = locToGlob((coords[k][0], coords[k][1] * ((-1) ** k)), bodyCornerss[k], 0)
+            else:
+                mainLoop(qu, ll)
+
+            cl.release()
+
+            log.log("loop over")
+
+            if lastRelPos is None:
+                break
+
+            bodyCornersTmp = [[], [], [], []]
+            for ind in range(4):
+                bodyCornersTmp[ind] = locToGlob(cornerPoint[ind], [0, 0], 0)
+
+            for i in range(4):
+                # legPos[i] = locToGlob((lastRelPos[i][0], lastRelPos[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
+                legPos[i] = locToGlob((coords[i][0], coords[i][1] * ((-1) ** i)), bodyCornersTmp[i], 0)
+
+            # break
+            # input()

@@ -292,6 +292,7 @@ def mainLoop():
         # stepLegs(coords, turnRelLeg)
         input()
 
+
 def spotTurn(degs):
     counter = 0
     turnSt = turnStPos if degs > 0 else turnStNeg
@@ -408,7 +409,7 @@ def execInst(ins, leg):
     if ins.type == inst_type.abs:
         for j in range(0, 3):
             if ins.args[j] is not None:
-                coords[leg][j] = ins.args[j]
+                coords[leg][j] = ins.args[j] * (0.80 if j == 0 and leg % 2 == 1 else 1)
         moveLegs(calcRots(coords[leg], leg), leg)
 
     elif ins.type == inst_type.rel:
@@ -462,6 +463,18 @@ def globToLoc(glob_p, orig_p, orig_rot, flipY=0, zHeight=0):
 # program start
 if __name__ == "__main__":
     while True:
-        spotTurn(360)
+
+        turn = 45
+
+        spotTurn(turn)
+
+        bodyCorners = [0, 0, 0, 0]
+
+        for leg in range(4):
+            bodyCorners[leg] = locToGlob(cornerPoint[leg], [0, 0], 0)
+
+        for j in range(4):
+            legPos[j] = locToGlob((coords[j][0], coords[j][1] * ((-1) ** j)), bodyCorners[j], 0)
+
         input()
         # mainLoop()

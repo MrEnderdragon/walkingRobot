@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import mayavi.mlab
 import time
+import open3d as o3d
 
 # focalLen = 19.6 * 10  # mm
 focalLen = 441.25  # pixels
@@ -114,7 +115,7 @@ def eq(in1, in2):
 
 if __name__ == "__main__":
 
-    for i in range(12, 17+1):
+    for i in range(1, 2):
         # Constructing test image
         imgId = "CAL-SPLR-" + str(i) + ".png"
         vDisp = cv2.imread("vDisp/vDisp" + imgId, cv2.IMREAD_UNCHANGED)
@@ -136,8 +137,8 @@ if __name__ == "__main__":
 
         depToUse = dep
 
-        xsFloorLess, ysFloorLess = np.where(floor == 1)
-        xsFloor, ysFloor = np.where(floor == 0)
+        xsFloorLess, ysFloorLess = np.where(np.all([floor == 0, dep != 0], axis=0))
+        xsFloor, ysFloor = np.where(np.all([floor == 1, dep != 0], axis=0))
 
         mapFloorLess = scale(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, mid)
         mapFloor = scale(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, mid)
@@ -164,7 +165,7 @@ if __name__ == "__main__":
         # print(obs)
         cv2.imshow("floorless", cv2.applyColorMap(cv2.convertScaleAbs(depFloorless*10, alpha=(255.0/65535.0)), cv2.COLORMAP_JET))
         cv2.imshow("slic", cv2.applyColorMap(cv2.convertScaleAbs(dispSLIC*20, alpha=(255.0/65535.0)), cv2.COLORMAP_JET))
-        cv2.imshow("floor", floor*255)
+        cv2.imshow("floor", floor.astype(np.uint8)*255)
         cv2.imshow("col", colour)
         cv2.imshow("vDisp", vDisp*10)
 
@@ -172,6 +173,12 @@ if __name__ == "__main__":
 
         shellx, shelly, shellz = mapFloorLess[floorLessCoords].T
         cx, cy, cz = mapFloor[floorCoords].T
+
+        allZ, allX, allY = np.append(mapFloorLess[floorLessCoords], mapFloor[floorCoords], axis=0).T
+        allX *= -1
+        allY *= -1
+
+        allCloud = np.array([allX, allY, allZ]).T
 
         shellUnsc = unscale(shellVox.T, mid).T
 
@@ -191,13 +198,54 @@ if __name__ == "__main__":
         # objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0, 0, 0.6), opacity=1)
         # objects = mayavi.mlab.points3d(-oy, -oz, ox, mode="cube", scale_factor=0.8, color=(0, 0, 0.9))
         # nodes2 = mayavi.mlab.points3d(sx, sy, sz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
-        shell = mayavi.mlab.points3d(-shelly, -shellz, shellx, mode="cube", scale_factor=0.1, color=(1, 0, 0))
-        floor = mayavi.mlab.points3d(-cy, -cz, cx, mode="cube", scale_factor=0.1, color=(0, 1, 0))
+        # shell = mayavi.mlab.points3d(-shelly, -shellz, shellx, mode="cube", scale_factor=0.1, color=(1, 0, 0))
+        # floor = mayavi.mlab.points3d(-cy, -cz, cx, mode="cube", scale_factor=0.1, color=(0, 1, 0))
+
+        # shell = mayavi.mlab.points3d(allX, allY, allZ, mode="cube", scale_factor=0.1, color=(0, 1, 0))
+
         # mayavi.mlab.outline(color=(0, 0, 0))
 
-        shell.glyph.scale_mode = 'scale_by_vector'
+        # shell.glyph.scale_mode = 'scale_by_vector'
 
-        mayavi.mlab.show()
+        # mayavi.mlab.show()
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(allCloud[:, :3])
+
+        pcd.normals = o3d.utility.Vector3dVector(np.zeros(
+            (1, 3)))  # invalidate existing normals
+
+        pcd.estimate_normals()
+
+        print("normals done")
+        # o3d.visualization.draw_geometries([pcd], point_show_normal=True)
+
+        mult = 50
+
+        radii = [0.005 * mult]#, 0.01 * mult, 0.02 * mult, 0.04 * mult]
+        rec_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_ball_pivoting(pcd, o3d.utility.DoubleVector(radii))
+
+        dec_mesh = rec_mesh.simplify_quadric_decimation(100000)
+        dec_mesh.remove_degenerate_triangles()
+        dec_mesh.remove_duplicated_triangles()
+        dec_mesh.remove_duplicated_vertices()
+        dec_mesh.remove_non_manifold_edges()
+
+        # o3d.visualization.draw_geometries([pcd, dec_mesh])
+        o3d.visualization.draw_geometries([dec_mesh])
+
+        # poisson_mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=8, width=0, scale=1.1, linear_fit=False)[0]
+        #
+        # poisson_mesh = poisson_mesh.simplify_quadric_decimation(100000)
+        # poisson_mesh.remove_degenerate_triangles()
+        # poisson_mesh.remove_duplicated_triangles()
+        # poisson_mesh.remove_duplicated_vertices()
+        # poisson_mesh.remove_non_manifold_edges()
+        #
+        # bbox = pcd.get_axis_aligned_bounding_box()
+        # p_mesh_crop = poisson_mesh.crop(bbox)
+        #
+        # o3d.visualization.draw_geometries([p_mesh_crop])
 
         # plt.show()
 

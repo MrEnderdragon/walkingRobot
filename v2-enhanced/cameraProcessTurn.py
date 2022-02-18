@@ -11,6 +11,7 @@ import RPi.GPIO as GPIO
 import traceback
 from multiprocessing import Queue, Lock
 import log
+import VL53L0X
 
 # Closer-in minimum depth, disparity range is doubled (from 95 to 190):
 extended_disparity = False  # doesn't work
@@ -19,9 +20,8 @@ subpixel = True
 # Better handling for occlusions:
 lr_check = True
 
-focalLen = 441.25  # pixels
-baseline = 7.5 * 10  # mm
-minSee = focalLen * baseline / 95
+# focalLen = 441.25  # pixels
+# baseline = 7.5 * 10  # mm
 
 
 def mapVal(inSt, inEn, outSt, outEn, val):
@@ -34,6 +34,7 @@ def renderImgCoord(inGrid):
 
 
 def setAngle(angle, p):
+    angle += 10
     duty = angle / 18 + 2
     p.ChangeDutyCycle(duty)
     time.sleep(1)
@@ -56,6 +57,8 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
     robotWidth = args["robotWidth"] if "robotWidth" in args else 112.6/2+120
     # flagWaitTime = args["flagWaitTime"] if "flagWaitTime" in args else 1
     amRot = args["amRot"] if "amRot" in args else 3
+
+    minSee = focalLen * baseline / 95
 
     with dai.Device(pipeline) as device:
         # Output queue will be used to get the disparity frames from the outputs defined above
@@ -91,6 +94,9 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                 time.sleep(0.5)
 
                 curTime = int(time.time())
+
+                log.log("rot start")
+
                 # f = open("images/latestTime.txt", "w")
                 # f.write(str(curTime))
                 # f.close()
@@ -101,8 +107,6 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                 #     f.write(str(curTime) + '\n' + content)
 
                 for i in range(1, amRot + 1):
-
-                    log.log("rot start")
 
                     rot = mapVal(1, amRot, -45, 45, i)
 
@@ -203,6 +207,211 @@ def takeImage(q, lock, camLock, pipeline, camSleep, **args):
                 cv2.imwrite("images/onpath-" + str(curTime) + ".png", renderImgCoord(onPath) * 255)
                 cv2.imwrite("images/curvePath-" + str(curTime) + ".png", renderImgCoord(curvedpath) * 255)
                 cv2.imwrite("images/voro-" + str(curTime) + ".png", renderImgCoord(voro * 255/(600 / 50)))
+                cv2.imwrite("images/walkMap-" + str(curTime) + ".png", renderImgCoord(walkmap) * 255)
+                cv2.imwrite("images/shell-" + str(curTime) + ".png", renderImgCoord(shellFlat.astype(np.uint8)) * 255)
+                cv2.imwrite("images/obs-" + str(curTime) + ".png", renderImgCoord(obsFlat.astype(np.uint8)) * 255)
+
+                if valid:
+                    q.put(newCurves)
+                else:
+                    q.put(None)
+
+            except ValueError:
+                log.log("ERRORED")
+                log.log(traceback.format_exc())
+
+            log.log("cam end")
+            lock.release()
+            camLock.release()
+
+            time.sleep(camSleep)
+
+
+def takeImageLidar(q, lock, camLock, pipeline, camSleep, **args):
+    """
+    :param q: queue for images
+    :param lock: lock for camera process
+    :param camLock: lock for starting camera
+    :param pipeline: pipeline for camera
+    :param camSleep: time to sleep between camera lock checks
+    :param args: flagWaitTime, focalLen, baseline, robotWidth, amRot, seeAng
+    :return:
+    """
+
+    focalLen = args["focalLen"] if "focalLen" in args else 441.25 * 31.35
+    baseline = args["baseline"] if "baseline" in args else 7.5 * 10
+    robotWidth = args["robotWidth"] if "robotWidth" in args else 112.6 / 2 + 120
+    # flagWaitTime = args["flagWaitTime"] if "flagWaitTime" in args else 1
+    amRot = args["amRot"] if "amRot" in args else 3
+    seeAng = args["seeAng"] if "seeAng" in args else 75
+
+    minSee = focalLen * baseline / 95 / 31.35
+
+    tof = VL53L0X.VL53L0X(i2c_bus=1, i2c_address=0x29)
+    tof.open()
+    tof.start_ranging(VL53L0X.Vl53l0xAccuracyMode.BEST)
+
+    timing = tof.get_timing()
+    if timing < 20000:
+        timing = 20000
+
+    with dai.Device(pipeline) as device:
+        # Output queue will be used to get the disparity frames from the outputs defined above
+        depQ = device.getOutputQueue(name="depOut", maxSize=4, blocking=False)
+        rQ = device.getOutputQueue(name="outR", maxSize=4, blocking=False)
+
+        servoPIN = 17
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(servoPIN, GPIO.OUT)
+
+        p = GPIO.PWM(servoPIN, 50)  # GPIO 17 for PWM with 50Hz
+        p.start(0)
+
+        depQ.get()  # blocking call, will wait until a new data has arrived
+        rQ.get()
+
+        time.sleep(0.5)
+
+        while True:
+            camLock.acquire()
+            lock.acquire()
+            log.log("cam start")
+
+            try:
+                vDisps = []
+                deps = []
+                disps = []
+                rots = []
+
+                lidarDists = []
+                lidarRots = []
+
+                depQ.get()  # blocking call, will wait until a new data has arrived
+                rQ.get()
+
+                time.sleep(0.5)
+
+                curTime = int(time.time())
+
+                log.log("rot start")
+
+                # f = open("images/latestTime.txt", "w")
+                # f.write(str(curTime))
+                # f.close()
+
+                # with open("images/latestTime.txt", 'r+') as f:
+                #     content = f.read()
+                #     f.seek(0, 0)
+                #     f.write(str(curTime) + '\n' + content)
+
+                for rot in range(-seeAng, seeAng+1, 15):
+
+                    setAngle(rot + 90, p)
+                    time.sleep(0.01)
+
+                    distance = tof.get_distance()
+                    log.log(distance)
+                    if 1 < distance < 2000:
+                        lidarDists.append(distance)
+                        lidarRots.append(np.deg2rad(rot))
+
+                    time.sleep(0.01)
+
+                    if rot in [-45, 0, 45]:
+                        inDisp = depQ.get()  # blocking call, will wait until a new data has arrived
+
+                        inR = rQ.get()
+
+                        frame = inDisp.getFrame()
+
+                        frameR = inR.getCvFrame()
+
+                        # Normalization for better visualization
+                        frameDep = frame
+
+                        curTime = int(time.time())
+                        # f = open("images/latestTime.txt", "w")
+                        # f.write(str(curTime))
+                        # f.close()
+
+                        with open("images/latestTime.txt", 'r+') as f:
+                            content = f.read()
+                            f.seek(0, 0)
+                            f.write(str(curTime) + '\n' + content)
+
+                        depCol = cv2.applyColorMap(cv2.convertScaleAbs(frameDep * 10, alpha=(255.0 / 65535.0)),
+                                                   cv2.COLORMAP_JET)
+                        cv2.imwrite("images/depth-" + str(curTime) + ".png", depCol)
+                        cv2.imwrite("images/depth16-" + str(curTime) + ".png", frame.astype(np.uint16))
+                        cv2.imwrite("images/col-" + str(curTime) + ".png", frameR)
+
+                        frameDispCalc = np.divide(focalLen * baseline, frameDep)
+
+                        cv2.imwrite("images/dispCalc-" + str(curTime) + ".png",
+                                    cv2.applyColorMap(cv2.convertScaleAbs(frameDispCalc * 10, alpha=(255.0 / 65535.0)),
+                                                      cv2.COLORMAP_JET))
+
+                        cv2.imwrite("images/disp16-" + str(curTime) + ".png", frameDispCalc.astype(np.uint16))
+
+                        vDisp, uDisp = UVdisp.uvDisp(frameDispCalc.astype(np.uint16))
+
+                        cv2.imwrite("images/vDisp-" + str(curTime) + ".png", vDisp * 10)
+                        cv2.imwrite("images/vDisp16-" + str(curTime) + ".png", vDisp)
+
+                        # cv2.imshow("depth", frameDep)
+                        # cv2.imshow("dispCalc", cv2.applyColorMap(cv2.convertScaleAbs(frameDispCalc*10, alpha=(255.0/65535.0)), cv2.COLORMAP_TWILIGHT))
+                        # cv2.imshow("v", vDisp*10)
+
+                        vDisps.append(vDisp)
+                        disps.append(frameDispCalc)
+                        deps.append(frame)
+                        rots.append(np.deg2rad(rot))
+
+                setAngle(90, p)
+
+                shellFlat, obsFlat, walkFlat, valid = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False,
+                                                                                lidarDists=lidarDists, lidarRots=lidarRots)
+
+                startCoords = (int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2))
+
+                onPath, path, closestNode, voro, walkmap = \
+                    aStar.aStar(shellFlat, obsFlat, walkFlat, None,
+                                verbose=True,
+                                distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
+                                robotWidth=robotWidth + 50, voroMax=600,
+                                ignoreDia=False, diaWeight=100, start=startCoords)
+
+                # onPath, path, closestNode, voro, walkmap = \
+                #     aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0] - 1, shellFlat.shape[1] - 1),
+                #                 verbose=True,
+                #                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid,
+                #                 robotWidth=robotWidth,
+                #                 ignoreDia=False, diaWeight=100, start=startCoords)
+
+                # aStar.aStar(shellFlat, obsFlat, walkFlat, (0, shellFlat.shape[1] - 1),
+
+                log.log("a* done")
+
+                # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
+                newCurves, curvedpath, simpPath = genPath.gen_path(path)
+
+                if len(simpPath) <= 1 or aStar.euclid(simpPath[len(simpPath) - 1], (0, 0)) < minSee or simpPath[1][0] < 0:
+                    valid = False
+
+                if len(simpPath) <= 1:
+                    log.log("INVALID: PATH TOO SHORT")
+
+                elif aStar.euclid(simpPath[len(simpPath) - 1], (0, 0)) < minSee:
+                    log.log("INVALID: PATH LENGTH < MINSEE")
+
+                elif simpPath[1][0] < 0:
+                    log.log("INVALID: WALKING BACKWARDS")
+
+                log.log("curve points done")
+
+                cv2.imwrite("images/onpath-" + str(curTime) + ".png", renderImgCoord(onPath) * 255)
+                cv2.imwrite("images/curvePath-" + str(curTime) + ".png", renderImgCoord(curvedpath) * 255)
+                cv2.imwrite("images/voro-" + str(curTime) + ".png", renderImgCoord(voro * 255 / (600 / 50)))
                 cv2.imwrite("images/walkMap-" + str(curTime) + ".png", renderImgCoord(walkmap) * 255)
                 cv2.imwrite("images/shell-" + str(curTime) + ".png", renderImgCoord(shellFlat.astype(np.uint8)) * 255)
                 cv2.imwrite("images/obs-" + str(curTime) + ".png", renderImgCoord(obsFlat.astype(np.uint8)) * 255)

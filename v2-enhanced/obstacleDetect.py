@@ -170,12 +170,14 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         :param rots: array of camera rotations
         :param verbose: print info?
         :param display: display obstacles?
-        :param args: floorThresh
+        :param args: floorThresh, lidarDists, lidarRots
         :return: shellFlat, obsFlat, walkFlat
     """
     global walkFlat, walkFlatDone
 
     floorThresh = args["floorThresh"] if "floorThresh" in args else 0.5
+    lidarDists = np.array(args["lidarDists"]) if "lidarDists" in args else None
+    lidarRots = np.array(args["lidarRots"]) if "lidarRots" in args else None
 
     mapFloorLess = np.zeros((0, 3), dtype=int)
     mapFloor = np.zeros((0, 3), dtype=int)
@@ -274,7 +276,21 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
     uniqueFL, countsFL = np.unique(mapFloorLess[floorLessCoords], return_counts=True, axis=0)
 
-    shellVox = uniqueFL[countsFL > thresh].T
+    if lidarRots is not None and lidarDists is not None and len(lidarRots) > 0:
+        print(lidarRots)
+        print(lidarDists)
+
+        places = np.array([-lidarDists * np.sin(lidarRots), lidarDists * np.cos(lidarRots), np.zeros(lidarRots.shape[0])]).T  # x, 3
+
+        # places = np.array((3, lidarRots), dtype=int)
+        # places[0, ...] = lidarDists * np.cos(lidarRots)
+        # places[1, ...] = lidarDists * np.sin(lidarRots)
+        # places[2, ...] = 0
+
+        uniqueFL = np.append(uniqueFL, np.floor(scale(places, mid)).astype(int), axis=0)  # X, 3
+        countsFL = np.append(countsFL, np.ones(len(lidarRots)) * thresh * 2)  # X, 3
+
+    shellVox = uniqueFL[countsFL > thresh].T  # X by 3 into 3 by X
 
     shellx, shelly, shellz = shellVox
 
@@ -354,6 +370,235 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     if verbose:
         end = time.time()
         log.log(end-start)
+        log.log("done unknowns")
+
+    shellFlat[shellx, shelly] = 1
+
+    valid = len(shellx) > 5
+
+    if not len(shellx) > 5 and verbose:
+        log.log("INVALID: SHELL LENGTH < 5")
+
+    # if not amInval < 2 and verbose:
+    #     log.log("INVALID: VALID PICTURES < 2")
+
+    return shellFlat, obsFlatB, walkFlat, valid
+
+
+def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, **args):
+    """
+        :param vDisps: array of v disparity
+        :param disps: array of disparity
+        :param deps: array of depth
+        :param rots: array of camera rotations
+        :param verbose: print info?
+        :param display: display obstacles?
+        :param args: floorThresh, lidarDists, lidarRots
+        :return: shellFlat, obsFlat, walkFlat
+    """
+    global walkFlat, walkFlatDone
+
+    floorThresh = args["floorThresh"] if "floorThresh" in args else 0.5
+    lidarDists = np.array(args["lidarDists"]) if "lidarDists" in args else None
+    lidarRots = np.array(args["lidarRots"]) if "lidarRots" in args else None
+
+    mapFloorLess = np.zeros((0, 3), dtype=int)
+    mapFloor = np.zeros((0, 3), dtype=int)
+    mapAll = np.zeros((0, 3), dtype=int)
+
+    shellFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
+
+    walkFlatI = None
+
+    if not walkFlatDone:
+        walkFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
+        walkFlatI = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.uint8)
+
+    # dep = deps[0][0:360, ...]
+
+    start = time.time()
+
+    if verbose:
+        log.log("starting detect")
+
+    amInval = 0
+
+    for i in range(len(rots)):
+        vDisp = vDisps[i][0:360, ...]
+        disp = disps[i][0:360, ...]
+        dep = deps[i][0:360, ...]
+
+        # _, dispSLIC, dispScaled, floor = hough.hough(disp, vDisp, slicc=False, verbose=verbose, m=100, k=500, scl=1.5,
+        #                                              its=5)
+
+        depToUse = dep
+
+        # xsFloorLess, ysFloorLess = np.where(np.all([floor == 0, dep != 0], axis=0))
+        # xsFloor, ysFloor = np.where(np.all([floor == 1, dep != 0], axis=0))
+        xsAll, ysAll = np.where(dep != 0)
+
+        # if verbose:
+        #     log.log("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
+
+        # if len(xsFloor) > (len(xsFloor) + len(xsFloorLess)) * floorThresh:
+        #     if verbose:
+        #         log.log("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
+        #
+        #     amInval += 1
+        # else:
+        #     mapFloor = np.append(mapFloor, np.floor(
+        #         scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
+        #
+        # mapFloorLess = np.append(mapFloorLess, np.floor(
+        #     scale(rot(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int),
+        #                          axis=0)  # X, 3
+        mapAll = np.append(mapAll, np.floor(
+            scale(rot(mapArr(xsAll, ysAll, depToUse).reshape(3, -1).T, rots[i]), mid)
+        ).astype(int), axis=0)  # X, 3
+
+        # xzRat = (dep.shape[1] / 2) / focalLen
+        if not walkFlatDone:
+            angle = np.arctan2(((dep.shape[1] - 80) / 2), focalLen)
+            rows, cols = walkFlat.shape
+            contours = np.array([[int(rows / 2), int(cols / 2)],
+                                 [int(rows / 2) + rows * np.cos(rots[i] - angle),
+                                  int(cols / 2) + cols * np.sin(rots[i] - angle)],
+                                 [int(rows / 2) + rows * np.cos(rots[i] + angle),
+                                  int(cols / 2) + rows * np.sin(rots[i] + angle)]], np.int32)
+
+            cv2.fillConvexPoly(walkFlatI, contours, color=100)
+            cv2.circle(walkFlatI, (int(rows / 2), int(cols / 2)), int(minSee / step), 100, -1)
+
+    if not walkFlatDone:
+        walkFlat = walkFlatI > 10
+        with open('./robot_walk.npy', 'wb') as ff:
+            np.save(ff, walkFlat)
+            walkFlatDone = True
+
+    floorheight = 1
+    if display:
+        floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
+                                       np.all(mapFloor < maxSize * 2 / step, axis=1),
+
+                                       (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
+                                                (mapFloor[:, 1] - mid[1] / step) ** 2 +
+                                                (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
+
+                                       ], axis=0))
+
+        uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
+        floorheight = np.min(uniqueF[:, 2]) if len(uniqueF) > 0 else 0
+
+    floorLessCoords = np.where(np.all([np.all(mapFloorLess > 0, axis=1),
+                                       np.all(mapFloorLess < maxSize * 2 / step, axis=1),
+
+                                       (np.sqrt((mapFloorLess[:, 2] - mid[2] / step) ** 2 +
+                                                (mapFloorLess[:, 1] - mid[1] / step) ** 2 +
+                                                (mapFloorLess[:, 0] - mid[0] / step) ** 2) > minSee / step),
+
+                                       ((mapFloorLess > floorheight + (maxCanOver / step))[:, 2]),
+                                       ((mapFloorLess < floorheight + (minCanUnder / step))[:, 2])
+                                       ], axis=0))
+
+    uniqueFL, countsFL = np.unique(mapFloorLess[floorLessCoords], return_counts=True, axis=0)
+
+    if lidarRots is not None and lidarDists is not None and len(lidarRots) > 0:
+        print(lidarRots)
+        print(lidarDists)
+
+        places = np.array(
+            [-lidarDists * np.sin(lidarRots), lidarDists * np.cos(lidarRots), np.zeros(lidarRots.shape[0])]).T  # x, 3
+
+        # places = np.array((3, lidarRots), dtype=int)
+        # places[0, ...] = lidarDists * np.cos(lidarRots)
+        # places[1, ...] = lidarDists * np.sin(lidarRots)
+        # places[2, ...] = 0
+
+        uniqueFL = np.append(uniqueFL, np.floor(scale(places, mid)).astype(int), axis=0)  # X, 3
+        countsFL = np.append(countsFL, np.ones(len(lidarRots)) * thresh * 2)  # X, 3
+
+    shellVox = uniqueFL[countsFL > thresh].T  # X by 3 into 3 by X
+
+    shellx, shelly, shellz = shellVox
+
+    if display:
+        shellx, shelly, shellz = shellVox
+        log.log(len(shellx))
+        floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
+                                       np.all(mapFloor < maxSize * 2 / step, axis=1),
+
+                                       (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
+                                                (mapFloor[:, 1] - mid[1] / step) ** 2 +
+                                                (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
+
+                                       ], axis=0))
+        uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
+        floorVox = uniqueF[countsF > thresh].T
+        floorx, floory, floorz = floorVox
+        # log.log(len(floorx))
+        import mayavi.mlab
+
+        # fig = mayavi.mlab.figure('Point Cloud')
+
+        mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
+        mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
+        mayavi.mlab.show()
+
+    shellUnsc = unscale(shellVox.T, mid)  # X by 3
+    # shellUnsc = unscale(shellVox.T, mid).T  # 3 by X
+
+    obsFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.uint8)
+
+    if verbose:
+        end = time.time()
+        log.log(end - start)
+        log.log("done detect")
+
+    # start = time.time()
+
+    if verbose:
+        start = time.time()
+        log.log("starting unknowns")
+
+    for ind, pos in enumerate(shellUnsc):
+
+        if pos[0] == 0 and pos[1] == 0:
+            continue
+
+        xyAngs = [0, 0, 0, 0]
+        xyAngs[0] = np.arctan2(pos[1], pos[0])
+        xyAngs[1] = np.arctan2(pos[1] + 1, pos[0])  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
+        xyAngs[2] = np.arctan2(pos[1], pos[0] + 1)
+        xyAngs[3] = np.arctan2(pos[1] + 1, pos[0] + 1)  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
+
+        angleRight = np.min(xyAngs)
+        angleLeft = np.max(xyAngs)
+
+        pCoords = scaleOld([pos[0], pos[1], 0], mid)
+        # if obsFlat[int(coords1[1]/step), int(coords1[0]/step)] == 100:
+        #    continue
+        tSize = int(maxSize * 1.5)
+        rightCoords = scaleOld([tSize * np.cos(angleRight), tSize * np.sin(angleRight), 0], mid)
+        leftCoords = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], mid)
+        # contours = np.array([[int(coords1[1]/step), int(coords1[0]/step)],
+        #                      [int(coords2[1]/step), int(coords2[0]/step)],
+        #                      [int(coords3[1]/step), int(coords3[0]/step)]],np.int32)
+        #
+        # cv2.fillConvexPoly(obsFlat, contours, color=100)
+
+        cv2.line(obsFlat, (int(pCoords[1] / step), int(pCoords[0] / step)),
+                 (int(rightCoords[1] / step), int(rightCoords[0] / step)), 100, 1)
+        cv2.line(obsFlat, (int(pCoords[1] / step), int(pCoords[0] / step)),
+                 (int(leftCoords[1] / step), int(leftCoords[0] / step)), 100, 1)
+
+    # if verbose:
+    #     cv2.imshow("test", test)
+
+    obsFlatB = obsFlat > 10
+
+    if verbose:
+        end = time.time()
+        log.log(end - start)
         log.log("done unknowns")
 
     shellFlat[shellx, shelly] = 1
