@@ -77,7 +77,7 @@ def processImages(start, end, verbose=False):
                     ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
     # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
-    newCurves, curvedpath = genPath.gen_path(path)
+    newCurves, curvedpath, _ = genPath.gen_path(path)
     
     end = time.time()
     print("overall")
@@ -139,11 +139,13 @@ def processImages(start, end, verbose=False):
     return newCurves
 
 
-def takeImage(q, _, __, camSleepTime, **___):
-    while True:
-        newCurves = processImages(6, 8, False)
+def takeImage(q, _, camLock, __, camSleepTime, **___):
+    for ind in range(59, 62):
+        camLock.acquire()
+        newCurves = processImages(ind*3, ind*3+2, False)
         q.put(newCurves)
-        time.sleep(camSleepTime)
+        camLock.release()
+        time.sleep(5)
         
 
 if __name__ == "__main__":
