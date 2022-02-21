@@ -4,6 +4,7 @@ import time
 import cv2
 import os
 import log
+import matplotlib.pyplot as plt
 
 focalLen = 441.25  # pixels
 baseline = 7.5 * 10  # mm
@@ -16,7 +17,7 @@ step = 50
 objstep = step
 # objstep = 200
 
-mid = [maxSize, maxSize, maxSize/10]
+mid = [maxSize, maxSize, maxSize]
 
 thresh = 35
 
@@ -402,11 +403,15 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
     lidarDists = np.array(args["lidarDists"]) if "lidarDists" in args else None
     lidarRots = np.array(args["lidarRots"]) if "lidarRots" in args else None
 
-    mapFloorLess = np.zeros((0, 3), dtype=int)
+    # mapFloorLess = np.zeros((0, 3), dtype=int)
     mapFloor = np.zeros((0, 3), dtype=int)
     mapAll = np.zeros((0, 3), dtype=int)
+    mapAllCloud = np.zeros((0, 3), dtype=float)
 
     shellFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
+    allFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
+    allVox3 = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
+    heightFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.float_)
 
     walkFlatI = None
 
@@ -428,13 +433,12 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         disp = disps[i][0:360, ...]
         dep = deps[i][0:360, ...]
 
-        # _, dispSLIC, dispScaled, floor = hough.hough(disp, vDisp, slicc=False, verbose=verbose, m=100, k=500, scl=1.5,
-        #                                              its=5)
+        _, dispSLIC, dispScaled, floor = hough.hough(disp, vDisp, slicc=False, verbose=verbose, m=100, k=500, scl=1.5, its=5)
 
         depToUse = dep
 
         # xsFloorLess, ysFloorLess = np.where(np.all([floor == 0, dep != 0], axis=0))
-        # xsFloor, ysFloor = np.where(np.all([floor == 1, dep != 0], axis=0))
+        xsFloor, ysFloor = np.where(np.all([floor == 1, dep != 0], axis=0))
         xsAll, ysAll = np.where(dep != 0)
 
         # if verbose:
@@ -446,17 +450,15 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         #
         #     amInval += 1
         # else:
-        #     mapFloor = np.append(mapFloor, np.floor(
-        #         scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
+        mapFloor = np.append(mapFloor, np.floor(scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
         #
         # mapFloorLess = np.append(mapFloorLess, np.floor(
         #     scale(rot(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int),
         #                          axis=0)  # X, 3
-        mapAll = np.append(mapAll, np.floor(
-            scale(rot(mapArr(xsAll, ysAll, depToUse).reshape(3, -1).T, rots[i]), mid)
-        ).astype(int), axis=0)  # X, 3
 
-        # xzRat = (dep.shape[1] / 2) / focalLen
+        mapAll = np.append(mapAll, np.floor(scale(rot(mapArr(xsAll, ysAll, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)  # X, 3
+        mapAllCloud = np.append(mapAll, scale(rot(mapArr(xsAll, ysAll, depToUse).reshape(3, -1).T, rots[i]), mid), axis=0)  # X, 3
+
         if not walkFlatDone:
             angle = np.arctan2(((dep.shape[1] - 80) / 2), focalLen)
             rows, cols = walkFlat.shape
@@ -476,31 +478,28 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
             walkFlatDone = True
 
     floorheight = 1
-    if display:
-        floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
-                                       np.all(mapFloor < maxSize * 2 / step, axis=1),
 
-                                       (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
-                                                (mapFloor[:, 1] - mid[1] / step) ** 2 +
-                                                (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
+    floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
+                                   np.all(mapFloor < maxSize * 2 / step, axis=1),
 
-                                       ], axis=0))
+                                   (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
+                                            (mapFloor[:, 1] - mid[1] / step) ** 2 +
+                                            (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
 
-        uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
-        floorheight = np.min(uniqueF[:, 2]) if len(uniqueF) > 0 else 0
+                                   ], axis=0))
 
-    floorLessCoords = np.where(np.all([np.all(mapFloorLess > 0, axis=1),
-                                       np.all(mapFloorLess < maxSize * 2 / step, axis=1),
+    allCoords = np.where(np.all([np.all(mapAll > 0, axis=1),
+                                 np.all(mapAll < maxSize * 2 / step, axis=1),
 
-                                       (np.sqrt((mapFloorLess[:, 2] - mid[2] / step) ** 2 +
-                                                (mapFloorLess[:, 1] - mid[1] / step) ** 2 +
-                                                (mapFloorLess[:, 0] - mid[0] / step) ** 2) > minSee / step),
+                                 (np.sqrt((mapAll[:, 2] - mid[2] / step) ** 2 +
+                                          (mapAll[:, 1] - mid[1] / step) ** 2 +
+                                          (mapAll[:, 0] - mid[0] / step) ** 2) > minSee / step),
 
-                                       ((mapFloorLess > floorheight + (maxCanOver / step))[:, 2]),
-                                       ((mapFloorLess < floorheight + (minCanUnder / step))[:, 2])
-                                       ], axis=0))
+                                 ], axis=0))
 
-    uniqueFL, countsFL = np.unique(mapFloorLess[floorLessCoords], return_counts=True, axis=0)
+    uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
+    uniqueA, countsA = np.unique(mapAll[allCoords], return_counts=True, axis=0)  # X, 3
+    floorheight = np.max(uniqueF[:, 2]) if len(uniqueF) > 0 else 0
 
     if lidarRots is not None and lidarDists is not None and len(lidarRots) > 0:
         print(lidarRots)
@@ -514,15 +513,36 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         # places[1, ...] = lidarDists * np.sin(lidarRots)
         # places[2, ...] = 0
 
-        uniqueFL = np.append(uniqueFL, np.floor(scale(places, mid)).astype(int), axis=0)  # X, 3
-        countsFL = np.append(countsFL, np.ones(len(lidarRots)) * thresh * 2)  # X, 3
+        uniqueA = np.append(uniqueA, np.floor(scale(places, mid)).astype(int), axis=0)  # X, 3
+        countsA = np.append(countsA, np.ones(len(lidarRots)) * thresh * 2)  # X, 3
 
-    shellVox = uniqueFL[countsFL > thresh].T  # X by 3 into 3 by X
+    # shellVox = uniqueFL[countsFL > thresh].T  # X by 3 into 3 by X
 
-    shellx, shelly, shellz = shellVox
+    allVox = uniqueA[countsA > thresh].T
+
+    allx, ally, allz = allVox
+    allFlat[allx, ally] = 1
+    allVox3[allx, ally, allz] = 1
+
+    amAllPoints = mapAllCloud.shape[0]
+
+    for j in range(amAllPoints):
+        x = int(mapAllCloud[j, 0])
+        y = int(mapAllCloud[j, 1])
+        z = int(mapAllCloud[j, 2])
+        zF = mapAllCloud[j, 2]
+
+        if 0 < x < maxSize*2/step and 0 < y < maxSize*2/step and 0 < z < maxSize*2/step:
+            if allVox3[x, y, z]:
+                heightFlat[x, y] = max(heightFlat[x, y], zF)
+
+    heightFlat -= floorheight
+    heightFlat = np.maximum(heightFlat, 0)
+
+    print(floorheight)
 
     if display:
-        shellx, shelly, shellz = shellVox
+        shellx, shelly, shellz = allVox
         log.log(len(shellx))
         floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
                                        np.all(mapFloor < maxSize * 2 / step, axis=1),
@@ -543,6 +563,12 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
         mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
         mayavi.mlab.show()
+
+    plt.figure(333)
+    plt.imshow(heightFlat)
+    plt.figure(444)
+    plt.imshow(allFlat)
+    plt.show()
 
     shellUnsc = unscale(shellVox.T, mid)  # X by 3
     # shellUnsc = unscale(shellVox.T, mid).T  # 3 by X
@@ -601,7 +627,7 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         log.log(end - start)
         log.log("done unknowns")
 
-    shellFlat[shellx, shelly] = 1
+
 
     valid = len(shellx) > 5 and amInval < 2
 

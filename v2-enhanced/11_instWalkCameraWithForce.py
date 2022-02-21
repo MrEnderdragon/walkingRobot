@@ -23,6 +23,7 @@ import curves
 import numpy as np
 import genPath
 import log
+import sys
 
 # import cv2
 # import UVdisp
@@ -55,8 +56,8 @@ walkHeight = 90
 # distance of steps from body
 lineDist = 120
 # how much to lift leg to step
-# liftHeight = 40
-liftHeight = 80
+liftHeight = 40
+# liftHeight = 80
 # amount to tilt before stepping
 tiltHeight = 10
 
@@ -352,7 +353,7 @@ def mainLoop(q, lock, **args):
 
         input() if ("inp" in args and args["inp"]) else None
 
-    for posInd in range(0, min(len(dPoints)-30, 200), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
+    for posInd in range(0, len(dPoints)-30 if ("inp" in args and args["inp"]) else min(len(dPoints)-30, 200), 2):  # min(int(len(dPoints)*3/3), int(150000/driveAcc)), 2):
 
         # log.log(dPoints[posInd])
         # input()
@@ -1002,11 +1003,12 @@ def driveTurnLineSmooth(rad1, turn, rad2): return [
 ]
 
 
-def driveQuatCircleCW(rad): return [curves.quadBezier((0, 0), (rad, 0), (rad, -rad))]
+def driveQuatCircleCW(rad): return [curves.quadBezier((0, 0), (rad, 0), (rad, -rad)),
+                                    curves.quadBezier((rad, -rad), (rad, -rad-15*10), (rad, -rad-30*10))]
 
 
 # forceToDrive = driveLine(300*10)
-forceToDrive = None
+forceToDrive = driveLine((100 + 30) * 10)
 
 
 # program start
@@ -1017,6 +1019,9 @@ if __name__ == "__main__":
         log.log("\n\n~~~ program end: " + str(time.asctime(time.localtime())) + " ~~~\n\n")
 
     atexit.register(exit_handler)
+
+    if len(sys.argv) > 0:
+        forceToDrive = driveQuatCircleCW(int(sys.argv[1])*10)
 
     qu = Queue()
     ll = Lock()

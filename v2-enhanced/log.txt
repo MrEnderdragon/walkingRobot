@@ -314,3 +314,256 @@ hough1 start
 masking start
 0.0005340576171875
 masking end
+starting detect
+hough1 start
+masking start
+0.0007359981536865234
+masking end
+hough1 start
+masking start
+0.0005402565002441406
+masking end
+hough1 start
+masking start
+0.0007221698760986328
+masking end
+starting detect
+hough1 start
+masking start
+0.0005068778991699219
+masking end
+hough1 start
+masking start
+0.0005130767822265625
+masking end
+hough1 start
+masking start
+0.0006401538848876953
+masking end
+starting detect
+hough1 start
+masking start
+0.0005741119384765625
+masking end
+hough1 start
+masking start
+0.0004496574401855469
+masking end
+hough1 start
+masking start
+0.0006320476531982422
+masking end
+starting detect
+hough1 start
+masking start
+0.000514984130859375
+masking end
+hough1 start
+masking start
+0.000476837158203125
+masking end
+hough1 start
+masking start
+0.0007388591766357422
+masking end
+starting detect
+hough1 start
+masking start
+0.000644683837890625
+masking end
+hough1 start
+masking start
+0.002803802490234375
+masking end
+hough1 start
+masking start
+0.0007998943328857422
+masking end
+starting detect
+hough1 start
+masking start
+0.0005087852478027344
+masking end
+hough1 start
+masking start
+0.0005087852478027344
+masking end
+hough1 start
+masking start
+0.0008580684661865234
+masking end
+starting detect
+hough1 start
+masking start
+0.0006749629974365234
+masking end
+hough1 start
+masking start
+0.0007259845733642578
+masking end
+hough1 start
+masking start
+0.0006120204925537109
+masking end
+starting detect
+hough1 start
+masking start
+0.0008890628814697266
+masking end
+hough1 start
+masking start
+0.0004799365997314453
+masking end
+hough1 start
+masking start
+0.001146078109741211
+masking end
+starting detect
+hough1 start
+masking start
+0.0005953311920166016
+masking end
+hough1 start
+masking start
+0.0005221366882324219
+masking end
+hough1 start
+masking start
+0.0005650520324707031
+masking end
+starting detect
+hough1 start
+masking start
+0.0005981922149658203
+masking end
+hough1 start
+masking start
+0.0004889965057373047
+masking end
+hough1 start
+masking start
+0.0006358623504638672
+masking end
+starting detect
+hough1 start
+masking start
+0.0006000995635986328
+masking end
+hough1 start
+masking start
+0.00047898292541503906
+masking end
+hough1 start
+masking start
+0.0005650520324707031
+masking end
+starting detect
+hough1 start
+masking start
+0.0006449222564697266
+masking end
+hough1 start
+masking start
+0.0005609989166259766
+masking end
+hough1 start
+masking start
+0.0009059906005859375
+masking end
+starting detect
+hough1 start
+masking start
+0.0004951953887939453
+masking end
+hough1 start
+masking start
+0.0004749298095703125
+masking end
+hough1 start
+masking start
+0.0005729198455810547
+masking end
+starting detect
+hough1 start
+masking start
+0.0004937648773193359
+masking end
+hough1 start
+masking start
+0.0010340213775634766
+masking end
+hough1 start
+masking start
+0.0005869865417480469
+masking end
+2002
+starting detect
+hough1 start
+masking start
+0.0004742145538330078
+masking end
+hough1 start
+masking start
+0.0005629062652587891
+masking end
+hough1 start
+masking start
+0.0006699562072753906
+masking end
+2896
+starting detect
+hough1 start
+masking start
+0.0004870891571044922
+masking end
+hough1 start
+masking start
+0.0005819797515869141
+masking end
+hough1 start
+masking start
+0.0005869865417480469
+masking end
+2896
+starting detect
+hough1 start
+masking start
+0.0004742145538330078
+masking end
+hough1 start
+masking start
+0.0005471706390380859
+masking end
+hough1 start
+masking start
+0.0005860328674316406
+masking end
+2896
+starting detect
+hough1 start
+masking start
+0.0005362033843994141
+masking end
+hough1 start
+masking start
+0.0005717277526855469
+masking end
+hough1 start
+masking start
+0.000576019287109375
+masking end
+2896
+starting detect
+hough1 start
+masking start
+0.0007028579711914062
+masking end
+hough1 start
+masking start
+0.0005660057067871094
+masking end
+hough1 start
+masking start
+0.0005960464477539062
+masking end
+2896

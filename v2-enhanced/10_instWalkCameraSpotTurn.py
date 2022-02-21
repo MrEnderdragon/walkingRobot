@@ -330,7 +330,7 @@ def mainLoop(q, lock):
             legPos[j] = locToGlob((coords[j][0], coords[j][1] * ((-1) ** j)), bodyCorners[j], 0)
 
         lock.acquire()
-        spotTurn(np.rad2deg(dPoints[1]*1.4))
+        spotTurn(np.rad2deg(dPoints[1]*1.3))  # previously 1.4
         lock.release()
 
         for leg in range(4):

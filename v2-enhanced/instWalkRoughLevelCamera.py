@@ -28,15 +28,15 @@ gndStepSize = 4
 gndThresh = 5
 
 # height of walk line
-walkHeight = 110
+walkHeight = 90
 # ensure that all legs are aways at this height or higher
 minHeight = 70
 # distance of steps from body (back legs)
 backLine = 120
 # distance of steps from body (front legs)
-frontLine = 100
+frontLine = 120
 # how much to lift leg to step
-liftHeight = 110
+liftHeight = 90
 # amount to tilt before stepping
 tiltHeight = 30
 
@@ -152,6 +152,10 @@ def mainLoop():
     ll.acquire()
 
     while True:
+
+        if counter == 24 or counter == 24+6* 14:
+
+
         driving = True
 
         levelCal = False
@@ -207,6 +211,7 @@ def generate():
     altinX = 50
 
     amWalkStraight = 3
+    # amWalkStraight = 0
     amWalkRough = 30
 
     tmpCoords = copy.deepcopy(coords)
@@ -253,7 +258,7 @@ def generate():
                 if j == order[i]:  # lift
                     moves[j].append(inst(inst_type.rel, [-amMove, 0, -tiltHeight * 2]))  # move + tilt
                     moves[j].append(inst(inst_type.rel, [0, 0, liftHeight]))  # lift
-                    moves[j].append(inst(inst_type.abs, [(outX if j <= 1 else inX), frontLine, None]))  # fwd
+                    moves[j].append(inst(inst_type.abs, [(outX if j <= 1 else inX), None, None]))  # fwd
                     moves[j].append(inst(inst_type.gnd, []))  # ground
                     moves[j].append(inst(inst_type.cal, []))  # calibration
                     moves[j].append(inst(inst_type.gyr, []))  # calibration
@@ -549,7 +554,7 @@ def updateRotation(rotation, offsets, ll):
             time.sleep(updateTime)
 
 
-def euler_from_quaternion(x, y, z, w):
+def euler_from_quaternion(i, j, k, real):
     """
     Convert a quaternion into euler angles (roll, pitch, yaw)
     roll is rotation around x in radians (counterclockwise)
@@ -571,11 +576,19 @@ def euler_from_quaternion(x, y, z, w):
     #
     # return np.rad2deg(roll_x), np.rad2deg(pitch_y), np.rad2deg(yaw_z)
 
-    roll = np.arctan2(2 * y * w - 2 * x * z, 1 - 2 * y * y - 2 * z * z)  # up to down
-    pitch = np.arctan2(2 * x * w - 2 * y * z, 1 - 2 * x * x - 2 * z * z)  # turning
-    yaw = np.arcsin(2 * x * y + 2 * z * w)  # side to side rocking
+    # roll = np.arctan2(2 * y * w - 2 * x * z, 1 - 2 * y * y - 2 * z * z)  # up to down
+    # pitch = np.arctan2(2 * x * w - 2 * y * z, 1 - 2 * x * x - 2 * z * z)  # turning
+    # yaw = np.arcsin(2 * x * y + 2 * z * w)  # side to side rocking
+    #
+    # return np.rad2deg(yaw), np.rad2deg(roll), np.rad2deg(pitch)
 
-    return np.rad2deg(yaw), np.rad2deg(roll), np.rad2deg(pitch)
+    # 0 is real, 1 is i, 2 is j, 3 is k
+
+    roll = np.arctan2(j*k + real*i, 1/2 - (i*i+j*j))
+    pitch = np.arcsin(-2*(i*k - real*j))
+    heading = np.arctan2(i*j + real*k, 1/2 - (j*j+k*k))
+
+    return np.rad2deg(roll), np.rad2deg(pitch), np.rad2deg(heading)
 
 
 # reads rotation data from gyroscope
