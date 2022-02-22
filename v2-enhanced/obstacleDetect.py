@@ -562,31 +562,24 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
 
         mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
         mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
-        mayavi.mlab.show()
+        # mayavi.mlab.show()
 
-    plt.figure(333)
-    plt.imshow(heightFlat)
-    plt.figure(444)
-    plt.imshow(allFlat)
-    plt.show()
-
-    shellUnsc = unscale(shellVox.T, mid)  # X by 3
-    # shellUnsc = unscale(shellVox.T, mid).T  # 3 by X
-
-    obsFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.uint8)
+    allUnsc = unscale(allVox.T, mid)  # X by 3
 
     if verbose:
         end = time.time()
         log.log(end - start)
         log.log("done detect")
 
-    # start = time.time()
-
     if verbose:
         start = time.time()
         log.log("starting unknowns")
 
-    for ind, pos in enumerate(shellUnsc):
+    newHeightFlat = np.copy(heightFlat)
+
+    for ind, pos in enumerate(allUnsc):
+
+        tmpFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.uint8)
 
         if pos[0] == 0 and pos[1] == 0:
             continue
@@ -612,10 +605,29 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         #
         # cv2.fillConvexPoly(obsFlat, contours, color=100)
 
-        cv2.line(obsFlat, (int(pCoords[1] / step), int(pCoords[0] / step)),
-                 (int(rightCoords[1] / step), int(rightCoords[0] / step)), 100, 1)
-        cv2.line(obsFlat, (int(pCoords[1] / step), int(pCoords[0] / step)),
-                 (int(leftCoords[1] / step), int(leftCoords[0] / step)), 100, 1)
+        pt1 = np.array((int(pCoords[1] / step), int(pCoords[0] / step)))
+        pt2 = np.array((int(rightCoords[1] / step), int(rightCoords[0] / step)))
+        pt3 = np.array((int(leftCoords[1] / step), int(leftCoords[0] / step)))
+
+        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(rightCoords[1] / step), int(rightCoords[0] / step)), 1, 1)
+        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int((rightCoords[1]+leftCoords[1])/2 / step),
+        #                                                                      int((rightCoords[0]+leftCoords[0])/2 / step)), 1, 1)
+        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(leftCoords[1] / step), int(leftCoords[0] / step)), 1, 1)
+
+        cv2.drawContours(tmpFlat, [np.array([pt1, pt2, pt3])], 0, 1, 2)
+
+        newHeightFlat = np.maximum(newHeightFlat, (tmpFlat.astype(np.float_) * float(heightFlat[allVox[0, ind], allVox[1, ind]])))
+
+
+    plt.figure(333)
+    plt.imshow(heightFlat)
+    plt.figure(222)
+    plt.imshow(newHeightFlat)
+    plt.figure(444)
+    plt.imshow(allFlat)
+    plt.show()
+
+
 
     # if verbose:
     #     cv2.imshow("test", test)
