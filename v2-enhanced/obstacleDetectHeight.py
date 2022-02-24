@@ -64,17 +64,18 @@ def processImages(start, end, verbose=False):
         plt.show(block=False)
 
     start = time.time()
-    shellFlat, obsFlat, walkFlat, _ = obstacleDetect.detectMultHeights(vDisps, disps, deps, rots, True, True)
+    heightFlat, walkFlat, _ = obstacleDetect.detectMultHeights(vDisps, disps, deps, rots, True, False)
     # onPath, path, closestNode, voro, walkmap = \
     #     aStar.aStar(shellFlat, obsFlat, walkFlat, unwalkCoords, (shellFlat.shape[0]/2, shellFlat.shape[1] - 1), verbose=True,
     #                 distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=robotWidth,
     #                 ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
 
     onPath, path, closestNode, voro, walkmap = \
-        aStar.aStar(shellFlat, obsFlat, walkFlat, None,
-                    verbose=True,
-                    distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=(robotWidth + 50), voroMax=600, 
-                    ignoreDia=False, start=(int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2)))
+        aStar.aStarHeight(heightFlat, walkFlat, None,
+                          verbose=True,
+                          distFunc=aStar.euclid, goalFunc=aStar.euclid, voroFunc=aStar.euclid, robotWidth=(robotWidth + 50),
+                          voroMax=600, ignoreDia=False, start=(int(heightFlat.shape[0] / 2), int(heightFlat.shape[1] / 2)),
+                          slopeWeight=10, display=True)
 
     # newCurves, curvedpath = genPath.gen_path((onPath * 255).astype(np.uint8))
     newCurves, curvedpath, _ = genPath.gen_path(path)
@@ -95,16 +96,16 @@ def processImages(start, end, verbose=False):
         
         fig = plt.figure(333)
         fig.add_subplot(2, 3, 1)
-        plt.imshow((shellFlat*255).astype(np.uint8))
+        plt.imshow(heightFlat)
         plt.axis('off')
         plt.title("shell")        
 
         fig.add_subplot(2, 3, 2)
-        obsDisp = (obsFlat*255).astype(np.uint8)
-        obsDisp[np.where(curvedpath > 0)] = 100
-        plt.imshow(obsDisp)
+        # obsDisp = (obsFlat*255).astype(np.uint8)
+        # obsDisp[np.where(curvedpath > 0)] = 100
+        plt.imshow(heightFlat + (walkFlat*30).astype(np.uint8))
         plt.axis('off')
-        plt.title("obs")        
+        plt.title("obs")
 
         fig.add_subplot(2, 3, 3)
         plt.imshow((walkFlat*255).astype(np.uint8))
@@ -117,7 +118,7 @@ def processImages(start, end, verbose=False):
         plt.title("voro")        
 
         fig.add_subplot(2, 3, 5)
-        plt.imshow((onPath * 255).astype(np.uint8))
+        plt.imshow((onPath * 20).astype(np.uint8) + heightFlat)
         plt.axis('off')
         plt.title("path")        
 

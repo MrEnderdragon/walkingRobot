@@ -196,3 +196,192 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     path.insert(0, cur)
 
     return onPath, path, closestNode, obsDist, (walkMap if ignoreDia else walkMapD)
+
+
+def aStarHeight(height, canWalk, goal, verbose=False, **args):
+    """
+        :param height: heights of cells (0 is floor)
+        :param canWalk: field of view, or general places that can be walked (true means can walk)
+        :param goal: (row, col) of goal point, relative to current position facing forwards
+        :param verbose: print status?
+        :param args: robotWidth (mm), step (mm), distFunc, goalFunc, voroFunc, voroWeight, vorMax, slopeWeight, start, display
+        :return: onPath, path, closestNode, obsDist
+    """
+
+    rows, cols = height.shape
+
+    robotWidth = args["robotWidth"] if "robotWidth" in args else 200
+    step = args["step"] if "step" in args else 50
+
+    distFunc = args["distFunc"] if "distFunc" in args else manhattan
+    goalFunc = checkGoal if goal is None else (args["goalFunc"] if "goalFunc" in args else manhattan)
+    # voroFunc = args["voroFunc"] if "voroFunc" in args else manhattan
+
+    voroWeight = args["voroWeight"] if "voroWeight" in args else 0.1
+    voroMax = args["voroMax"] if "voroMax" in args else 400
+
+    ignoreDia = args["ignoreDia"] if "ignoreDia" in args else False
+    slopeWeight = args["slopeWeight"] if "slopeWeight" in args else 5
+
+    obsDiff = args["obsDiff"] if "obsDiff" in args else 170/step
+
+    display = args["display"] if "display" in args else False
+
+    startCoords = args["start"] if "start" in args else (int(height.shape[0] / 2), 0)
+
+    goalFar = False
+
+    if goal is None:
+        goal = (rows, cols)
+        goalFar = True
+    else:
+        goal = (goal[0] + int(rows / 2), goal[1] + int(cols / 2))
+
+    kernel = np.ones((1 + int(math.ceil(robotWidth / step)), 1 + int(math.ceil(robotWidth / step))), np.uint8)
+
+    isObst = np.zeros((8, rows, cols), np.bool_)
+    isObstD = np.zeros((8, rows, cols), np.bool_)
+    countt = 0
+    for row in range(-1, 2):
+        for col in range(-1, 2):
+            if row == 0 and col == 0:
+                continue
+
+            tmp = np.roll(height, (row, col), axis=(0, 1))
+
+            isObst[countt][np.where(np.abs(height - tmp) <= obsDiff)] = 1
+            isObstD[countt] = 1 - cv2.dilate(1 - isObst[countt].astype(np.uint8), kernel, iterations=1).astype(np.bool_)
+            countt += 1
+
+    # unwalkable = shell.astype(np.bool_) + unknowns.astype(np.bool_)
+    # obsNoDialate = unwalkable.astype(np.bool_)
+    # obstacles = cv2.dilate(unwalkable.astype(np.uint8), kernel, iterations=1).astype(np.bool_)
+    canWalk = canWalk.astype(np.uint8)
+
+    # cv2.imshow("obs", obstacles.astype(np.uint8)*255)
+    # cv2.imshow("canWalk", canWalk.astype(np.uint8)*255)
+
+    walkMapObs = np.clip(canWalk.astype(np.int8) - np.amax(1-isObst.astype(np.int8), axis=0), 0, None).astype(np.bool_)
+    # walkMapD = np.clip(canWalk.astype(np.int8) - obstacles.astype(np.int8), 0, None).astype(np.bool_)
+    walkMap = np.clip(canWalk.astype(np.int8), 0, None).astype(np.bool_)
+
+    # cv2.imshow("walkmap", walkMap.astype(np.uint8)*255)
+
+    nodeTo = np.zeros((rows, cols, 2), np.uint32) - 1
+    distTo = np.zeros((rows, cols), np.float_) + np.inf
+    obsDist = np.zeros((rows, cols), np.float_)
+    visited = np.zeros((rows, cols), np.bool_)
+
+    start = time.time()
+
+    if verbose:
+        log.log("voronoi start")
+
+    # contours, _ = cv2.findContours((obsNoDialate if ignoreDia else obstacles).astype(np.uint8) * 255, cv2.RETR_EXTERNAL,
+    #                                cv2.CHAIN_APPROX_NONE)
+
+    # unwalkCoords = []
+    # for contour in contours:
+    #     for item in contour:
+    #         unwalkCoords.append((item[0][1], item[0][0]))
+
+    unwalkCoords = np.array(tuple(zip(*np.where(walkMapObs == 0))))
+    walkCoords = np.array(tuple(zip(*np.where(walkMap > 0))))
+
+    dists = np.min(cdist(walkCoords, unwalkCoords), axis=1)
+    for ind in range(walkCoords.shape[0]):
+        obsDist[walkCoords[ind][0], walkCoords[ind][1]] = min(dists[ind], voroMax / step)
+
+    # for row in range(rows):
+    #     for col in range(cols):
+    #         if not walkMap[row, col]:
+    #             obsDist[row, col] = 0
+    #             continue
+    #         obsDist[row, col] = min(voroFunc((row, col), unwalkCoords, arr=True), voroMax / step)
+    #         # obsDist[row, col] = min(voroFunc((row, col), unwalkCoords[index]), voroMax / step)
+
+    obsMax = np.max(obsDist)
+
+    q = PriorityQueue()
+    q.put((0, startCoords))
+    distTo[startCoords[0], startCoords[1]] = 0
+
+    closestNode = (startCoords[0], startCoords[1])
+
+    if verbose:
+        end = time.time()
+        log.log(end - start)
+        start = time.time()
+        log.log("a* start")
+
+    while not q.empty():
+        dist, coords = q.get()
+        if visited[coords[0], coords[1]]:
+            continue
+
+        visited[coords[0], coords[1]] = 1
+
+        if goalFunc(coords, goal) < goalFunc(closestNode, goal):
+            closestNode = coords
+
+        # if goalFunc(coords, (0,0)) > goalFunc(closestNode, (0,0)):
+        #     closestNode = coords
+
+        countt = 0
+
+        for row in range(coords[0] - 1, coords[0] + 2):
+            for col in range(coords[1] - 1, coords[1] + 2):
+                if row == coords[0] and col == coords[1]:
+                    continue
+                if 0 <= row < height.shape[0] and 0 <= col < height.shape[1] and walkMap[row, col] and isObstD[countt, row, col] > 0:
+                    # if not ignoreDia and not walkMapD[row, col]:
+                    #     continue
+
+                    tentDist = distTo[coords[0], coords[1]] + \
+                               distFunc(coords, (row, col)) + \
+                               obsMax - obsDist[row, col] * voroWeight + \
+                               abs(height[row, col] - height[coords[0], coords[1]])*slopeWeight
+
+                    if distTo[row, col] > tentDist:
+                        distTo[row, col] = tentDist
+                        nodeTo[row, col] = coords
+                        q.put((tentDist + goalFunc((row, col), goal), (row, col)))
+                        visited[row, col] = 0
+
+                countt += 1
+
+    onPath = np.zeros((rows, cols), np.bool_)
+    path = []
+
+    cur = closestNode
+
+    if verbose:
+        end = time.time()
+        log.log(end - start)
+        log.log("path start")
+
+    while cur[0] != startCoords[0] or cur[1] != startCoords[1]:
+        onPath[cur[0], cur[1]] = 1
+        path.insert(0, cur)
+        cur = nodeTo[cur[0], cur[1]]
+
+    onPath[cur[0], cur[1]] = 1
+    path.insert(0, cur)
+
+    if display:
+        import matplotlib.pyplot as plt
+        fig = plt.figure(222)
+
+        for i in range(4):
+            fig.add_subplot(3, 3, i+1)
+            plt.imshow(isObst[i]*100 + height)
+            plt.axis('off')
+            plt.title(i)
+
+        for i in range(4, 8):
+            fig.add_subplot(3, 3, i+2)
+            plt.imshow(isObst[i]*100 + height)
+            plt.axis('off')
+            plt.title(i)
+
+    return onPath, path, closestNode, obsDist, walkMap

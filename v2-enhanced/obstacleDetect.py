@@ -399,7 +399,7 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
     """
     global walkFlat, walkFlatDone
 
-    floorThresh = args["floorThresh"] if "floorThresh" in args else 0.5
+    lidarHeight = args["lidarHeight"] if "lidarHeight" in args else 90+130
     lidarDists = np.array(args["lidarDists"]) if "lidarDists" in args else None
     lidarRots = np.array(args["lidarRots"]) if "lidarRots" in args else None
 
@@ -408,7 +408,6 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
     mapAll = np.zeros((0, 3), dtype=int)
     mapAllCloud = np.zeros((0, 3), dtype=float)
 
-    shellFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
     allFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
     allVox3 = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.bool_)
     heightFlat = np.zeros((int(maxSize * 2 / step), int(maxSize * 2 / step)), dtype=np.float_)
@@ -441,20 +440,7 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         xsFloor, ysFloor = np.where(np.all([floor == 1, dep != 0], axis=0))
         xsAll, ysAll = np.where(dep != 0)
 
-        # if verbose:
-        #     log.log("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
-
-        # if len(xsFloor) > (len(xsFloor) + len(xsFloorLess)) * floorThresh:
-        #     if verbose:
-        #         log.log("floor: " + str(len(xsFloor)) + " out of " + str(len(xsFloor) + len(xsFloorLess)))
-        #
-        #     amInval += 1
-        # else:
         mapFloor = np.append(mapFloor, np.floor(scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
-        #
-        # mapFloorLess = np.append(mapFloorLess, np.floor(
-        #     scale(rot(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int),
-        #                          axis=0)  # X, 3
 
         mapAll = np.append(mapAll, np.floor(scale(rot(mapArr(xsAll, ysAll, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)  # X, 3
         mapAllCloud = np.append(mapAll, scale(rot(mapArr(xsAll, ysAll, depToUse).reshape(3, -1).T, rots[i]), mid), axis=0)  # X, 3
@@ -477,8 +463,6 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
             np.save(ff, walkFlat)
             walkFlatDone = True
 
-    floorheight = 1
-
     floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
                                    np.all(mapFloor < maxSize * 2 / step, axis=1),
 
@@ -499,7 +483,7 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
 
     uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
     uniqueA, countsA = np.unique(mapAll[allCoords], return_counts=True, axis=0)  # X, 3
-    floorheight = np.max(uniqueF[:, 2]) if len(uniqueF) > 0 else 0
+    floorheight = np.average(uniqueF[:, 2]) if len(uniqueF) > 0 else 0
 
     if lidarRots is not None and lidarDists is not None and len(lidarRots) > 0:
         print(lidarRots)
@@ -562,7 +546,7 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
 
         mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
         mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
-        # mayavi.mlab.show()
+        mayavi.mlab.show()
 
     allUnsc = unscale(allVox.T, mid)  # X by 3
 
@@ -575,7 +559,7 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         start = time.time()
         log.log("starting unknowns")
 
-    newHeightFlat = np.copy(heightFlat)
+    obsHeightFlat = np.copy(heightFlat)
 
     for ind, pos in enumerate(allUnsc):
 
@@ -594,59 +578,42 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         angleLeft = np.max(xyAngs)
 
         pCoords = scaleOld([pos[0], pos[1], 0], mid)
-        # if obsFlat[int(coords1[1]/step), int(coords1[0]/step)] == 100:
-        #    continue
         tSize = int(maxSize * 1.5)
         rightCoords = scaleOld([tSize * np.cos(angleRight), tSize * np.sin(angleRight), 0], mid)
         leftCoords = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], mid)
-        # contours = np.array([[int(coords1[1]/step), int(coords1[0]/step)],
-        #                      [int(coords2[1]/step), int(coords2[0]/step)],
-        #                      [int(coords3[1]/step), int(coords3[0]/step)]],np.int32)
-        #
-        # cv2.fillConvexPoly(obsFlat, contours, color=100)
 
-        pt1 = np.array((int(pCoords[1] / step), int(pCoords[0] / step)))
-        pt2 = np.array((int(rightCoords[1] / step), int(rightCoords[0] / step)))
-        pt3 = np.array((int(leftCoords[1] / step), int(leftCoords[0] / step)))
+        # pt1 = np.array((int(pCoords[1] / step), int(pCoords[0] / step)))
+        # pt2 = np.array((int(rightCoords[1] / step), int(rightCoords[0] / step)))
+        # pt3 = np.array((int(leftCoords[1] / step), int(leftCoords[0] / step)))
+        # cv2.drawContours(tmpFlat, [np.array([pt1, pt2, pt3])], 0, 1, 2)
 
-        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(rightCoords[1] / step), int(rightCoords[0] / step)), 1, 1)
-        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int((rightCoords[1]+leftCoords[1])/2 / step),
-        #                                                                      int((rightCoords[0]+leftCoords[0])/2 / step)), 1, 1)
-        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(leftCoords[1] / step), int(leftCoords[0] / step)), 1, 1)
+        cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(rightCoords[1] / step), int(rightCoords[0] / step)), 1, 1)
+        cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int((rightCoords[1]+leftCoords[1])/2 / step),
+                                                                             int((rightCoords[0]+leftCoords[0])/2 / step)), 1, 2)
+        cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(leftCoords[1] / step), int(leftCoords[0] / step)), 1, 1)
 
-        cv2.drawContours(tmpFlat, [np.array([pt1, pt2, pt3])], 0, 1, 2)
+        obsHeightFlat = np.maximum(obsHeightFlat, (tmpFlat.astype(np.float_) * float(heightFlat[allVox[0, ind], allVox[1, ind]])))
 
-        newHeightFlat = np.maximum(newHeightFlat, (tmpFlat.astype(np.float_) * float(heightFlat[allVox[0, ind], allVox[1, ind]])))
-
-
-    plt.figure(333)
-    plt.imshow(heightFlat)
-    plt.figure(222)
-    plt.imshow(newHeightFlat)
-    plt.figure(444)
-    plt.imshow(allFlat)
-    plt.show()
-
-
-
-    # if verbose:
-    #     cv2.imshow("test", test)
-
-    obsFlatB = obsFlat > 10
+    if display:
+        plt.figure(333)
+        plt.imshow(heightFlat)
+        plt.figure(222)
+        plt.imshow(obsHeightFlat)
+        plt.figure(444)
+        plt.imshow(allFlat)
+        plt.show()
 
     if verbose:
         end = time.time()
         log.log(end - start)
         log.log("done unknowns")
 
+    valid = len(allx) > 5 and amInval < 2
 
-
-    valid = len(shellx) > 5 and amInval < 2
-
-    if not len(shellx) > 5 and verbose:
+    if not len(allx) > 5 and verbose:
         log.log("INVALID: SHELL LENGTH < 5")
 
     if not amInval < 2 and verbose:
         log.log("INVALID: VALID PICTURES < 2")
 
-    return shellFlat, obsFlatB, walkFlat, valid
+    return obsHeightFlat, walkFlat, valid
