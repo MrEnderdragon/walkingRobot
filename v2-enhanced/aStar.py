@@ -374,13 +374,13 @@ def aStarHeight(height, canWalk, goal, verbose=False, **args):
 
         for i in range(4):
             fig.add_subplot(3, 3, i+1)
-            plt.imshow(isObst[i]*100 + height)
+            plt.imshow(isObst[i]*100)
             plt.axis('off')
             plt.title(i)
 
         for i in range(4, 8):
             fig.add_subplot(3, 3, i+2)
-            plt.imshow(isObst[i]*100 + height)
+            plt.imshow(isObst[i]*100)
             plt.axis('off')
             plt.title(i)
 

@@ -540,13 +540,13 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         floorVox = uniqueF[countsF > thresh].T
         floorx, floory, floorz = floorVox
         # log.log(len(floorx))
-        import mayavi.mlab
+        # import mayavi.mlab
 
         # fig = mayavi.mlab.figure('Point Cloud')
 
-        mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
-        mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
-        mayavi.mlab.show()
+        # mayavi.mlab.points3d(shellx, shelly, shellz, mode="cube", scale_factor=0.8, color=(1, 0, 0))
+        # mayavi.mlab.points3d(floorx, floory, floorz, mode="cube", scale_factor=0.8, color=(0, 1, 0))
+        # mayavi.mlab.show()
 
     allUnsc = unscale(allVox.T, mid)  # X by 3
 
@@ -570,9 +570,9 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
 
         xyAngs = [0, 0, 0, 0]
         xyAngs[0] = np.arctan2(pos[1], pos[0])
-        xyAngs[1] = np.arctan2(pos[1] + 1, pos[0])  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
-        xyAngs[2] = np.arctan2(pos[1], pos[0] + 1)
-        xyAngs[3] = np.arctan2(pos[1] + 1, pos[0] + 1)  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
+        xyAngs[1] = np.arctan2(pos[1] + step, pos[0])  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
+        xyAngs[2] = np.arctan2(pos[1], pos[0] + step)
+        xyAngs[3] = np.arctan2(pos[1] + step, pos[0] + step)  # * (-1 if pos[1]+1 == 0 and pos[1] < 0 else 1)
 
         angleRight = np.min(xyAngs)
         angleLeft = np.max(xyAngs)
@@ -582,15 +582,30 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
         rightCoords = scaleOld([tSize * np.cos(angleRight), tSize * np.sin(angleRight), 0], mid)
         leftCoords = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], mid)
 
-        # pt1 = np.array((int(pCoords[1] / step), int(pCoords[0] / step)))
-        # pt2 = np.array((int(rightCoords[1] / step), int(rightCoords[0] / step)))
-        # pt3 = np.array((int(leftCoords[1] / step), int(leftCoords[0] / step)))
-        # cv2.drawContours(tmpFlat, [np.array([pt1, pt2, pt3])], 0, 1, 2)
+        pt1 = np.array((int(pCoords[1] / step), int(pCoords[0] / step)))
+        pt2 = np.array((int(rightCoords[1] / step), int(rightCoords[0] / step)))
+        pt3 = np.array((int(leftCoords[1] / step), int(leftCoords[0] / step)))
+        # cv2.drawContours(tmpFlat, [np.array([pt1, pt2, pt3])], 0, 1, -1)
+        cv2.fillConvexPoly(tmpFlat, np.array([pt1, pt2, pt3]), color=1)
 
-        cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(rightCoords[1] / step), int(rightCoords[0] / step)), 1, 1)
-        cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int((rightCoords[1]+leftCoords[1])/2 / step),
-                                                                             int((rightCoords[0]+leftCoords[0])/2 / step)), 1, 2)
-        cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(leftCoords[1] / step), int(leftCoords[0] / step)), 1, 1)
+        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(rightCoords[1] / step), int(rightCoords[0] / step)), 1, 1)
+        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int((rightCoords[1]+leftCoords[1])/2 / step),
+        #                                                                      int((rightCoords[0]+leftCoords[0])/2 / step)), 1, 1)
+        # cv2.line(tmpFlat, (int(pCoords[1] / step), int(pCoords[0] / step)), (int(leftCoords[1] / step), int(leftCoords[0] / step)), 1, 1)
+
+        # 75, 61
+
+        # print(str(int(pCoords[0]/step)) + " - " + str(int(pCoords[1]/step)))
+
+        if int(pCoords[1]/step) == 76 and int(pCoords[0]/step) == 61:
+            plt.figure(111)
+            plt.imshow(heightFlat)
+            plt.figure(112)
+            tringle = (tmpFlat.astype(np.float_) * float(heightFlat[allVox[0, ind], allVox[1, ind]]))
+            tringle[0, 0] = np.amax(heightFlat)
+            plt.imshow(tringle)
+            plt.figure(113)
+            plt.imshow(np.maximum(heightFlat, (tmpFlat.astype(np.float_) * float(heightFlat[allVox[0, ind], allVox[1, ind]]))))
 
         obsHeightFlat = np.maximum(obsHeightFlat, (tmpFlat.astype(np.float_) * float(heightFlat[allVox[0, ind], allVox[1, ind]])))
 
