@@ -23,7 +23,19 @@ If running on computer, required libraries are:
 
 All other programs are testing programs or custom-written modules.
 
-Notable programs, all can be run on computer:
+Notable testing programs, all can be run on computer:
 - pointCloudMult.py
 - obstacleDetectHeight.py
 - SLICandSave.py
+
+Custom modules for specific functionalities:
+- UVdisp.py
+- aStar.py 
+- cameraProcessTurn.py
+- curves.py
+- genPath.py
+- hough.py
+- log.py
+- obstacleDetect.py
+- regMove.py
+- slic.py
