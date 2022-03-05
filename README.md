@@ -8,6 +8,9 @@ Runs on:
 Required libraries:
 - numpy
 - depthai
+- Scikit Image
+- Cv2 (OpenCV)
+- SciPy
 
 If necessary, main programs can be run on a computer, and will instead use previously-taken images for processing.
 
@@ -15,10 +18,10 @@ If running on computer, required libraries are:
 - Mayavi
 - MatPlotLib
 - SciPy
-- Cv2
+- Cv2 (OpenCV)
 - Scikit Image
 
-All other programs are testing programs.
+All other programs are testing programs or custom-written modules.
 
 Notable programs, all can be run on computer:
 - pointCloudMult.py
