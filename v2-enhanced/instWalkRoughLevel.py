@@ -9,6 +9,8 @@ from enum import Enum
 import threading
 import multiprocessing
 from multiprocessing import Lock
+from scipy.spatial.transform import Rotation as R
+
 
 # AX-12A motor connection
 serial_connection = Connection(port="/dev/ttyAMA0", rpi_gpio=True, baudrate=1000000)
@@ -28,7 +30,7 @@ gndStepSize = 4
 gndThresh = 5
 
 # height of walk line
-walkHeight = 110
+walkHeight = 100
 # ensure that all legs are aways at this height or higher
 minHeight = 70
 # distance of steps from body (back legs)
@@ -52,9 +54,9 @@ updateTime = 0.05
 # time per leg adjustment for levelling subsystem
 moveTime = 0.1
 # levelling gains up and down for levelling subsystem
-gainsUp = -5
+gainsUp = 7
 # rotation threshold for levelling subsystem
-gyroThresh = 3
+gyroThresh = 1
 
 order = [0, 3, 1, 2]  # order to take steps
 
@@ -88,7 +90,7 @@ legId = [
 # movement limits of leg motors
 limits = [
     [-40, 20],
-    [-40, 50],
+    [-40, 40],
     [-75, 105]
 ]
 
@@ -154,6 +156,7 @@ def mainLoop():
     while True:
         driving = True
 
+        groundd = -1
         levelCal = False
         rotCal = False
 
@@ -164,11 +167,16 @@ def mainLoop():
             if moves[i][counter].type == inst_type.gyr:
                 rotCal = True
                 break
+            if moves[i][counter].type == inst_type.gnd:
+                groundd = i
+                break
 
         if levelCal:
             calibrateLegs()
         elif rotCal:
             selfLevel()
+        elif groundd != -1:
+            execInst(moves[groundd][counter], groundd)
         else:
             execInst(moves[0][counter], 0)
             execInst(moves[1][counter], 1)
@@ -206,7 +214,7 @@ def generate():
     altoutX = 120
     altinX = 50
 
-    amWalkStraight = 3
+    amWalkStraight = 1
     amWalkRough = 30
 
     tmpCoords = copy.deepcopy(coords)
@@ -357,6 +365,9 @@ def findGround(leg):
         time.sleep(0.01)
 
     print("g start")
+
+    amGnd = 0
+
     while True:
 
         pres1 = None
@@ -387,10 +398,18 @@ def findGround(leg):
         err1 = pres1 - goal1
         err2 = pres2 - goal2
 
-        print(str(err1) + " 1 <==> 2 " + str(err2))
+        print(str(pres1) + " <> " + str(goal1) + " - " + str(err1) + "   1 <==> 2   " + str(pres2) + " <> " + str(goal2))
 
         if abs(err1) > gndThresh or abs(err2) > gndThresh:
-            break
+            amGnd += 1
+            if amGnd > 0:
+                break
+
+            # regMove.actAll(serial_connection)
+            # time.sleep(0.1)
+            # continue
+        else:
+            amGnd = 0
 
         for i in range(len(opposites)):
             if i == leg or i == opposites[leg]:
@@ -419,6 +438,7 @@ def findGround(leg):
         regMove.actAll(serial_connection)
         time.sleep(0.1)
 
+    print("g end")
     amTasks -= 1
 
 
@@ -432,8 +452,14 @@ def calibrateLegs():
         avg -= i[2]
         minn = min(minn, -i[2])
 
-    diff = (walkHeight * 4 - avg) / 4.0
+    print("1: %.2f" % coords[0][2], "---- 2: %.2f" % coords[1][2])
+    print("3: %.2f" % coords[2][2], "---- 4: %.2f" % coords[3][2])
+
+    diff = walkHeight - (avg / 4.0)
     minMove = minHeight - minn
+
+    print("diff " + str(diff) + "    -----    " + str(minMove))
+
     diff = max(minMove, diff)
 
     print("diff " + str(diff))
@@ -462,17 +488,17 @@ def selfLevel():
 
         #   2    3
 
-        coords[0][2] += rotation[0] * gainsUp * moveTime
-        coords[2][2] += rotation[0] * gainsUp * moveTime
-
-        coords[1][2] -= rotation[0] * gainsUp * moveTime
-        coords[3][2] -= rotation[0] * gainsUp * moveTime
-
+        coords[0][2] += rotation[1] * gainsUp * moveTime
         coords[2][2] += rotation[1] * gainsUp * moveTime
-        coords[3][2] += rotation[1] * gainsUp * moveTime
 
-        coords[0][2] -= rotation[1] * gainsUp * moveTime
         coords[1][2] -= rotation[1] * gainsUp * moveTime
+        coords[3][2] -= rotation[1] * gainsUp * moveTime
+
+        coords[2][2] += rotation[0] * gainsUp * moveTime
+        coords[3][2] += rotation[0] * gainsUp * moveTime
+
+        coords[0][2] -= rotation[0] * gainsUp * moveTime
+        coords[1][2] -= rotation[0] * gainsUp * moveTime
 
         for i in range(4):
             errorr = True
@@ -549,33 +575,21 @@ def updateRotation(rotation, offsets, ll):
             time.sleep(updateTime)
 
 
-def euler_from_quaternion(x, y, z, w):
+def euler_from_quaternion(i, j, k, real):
     """
     Convert a quaternion into euler angles (roll, pitch, yaw)
     roll is rotation around x in radians (counterclockwise)
     pitch is rotation around y in radians (counterclockwise)
     yaw is rotation around z in radians (counterclockwise)
     """
-    # t0 = +2.0 * (w * x + y * z)
-    # t1 = +1.0 - 2.0 * (x * x + y * y)
-    # roll_x = math.atan2(t0, t1)
-    #
-    # t2 = +2.0 * (w * y - z * x)
-    # t2 = +1.0 if t2 > +1.0 else t2
-    # t2 = -1.0 if t2 < -1.0 else t2
-    # pitch_y = math.asin(t2)
-    #
-    # t3 = +2.0 * (w * z + x * y)
-    # t4 = +1.0 - 2.0 * (y * y + z * z)
-    # yaw_z = math.atan2(t3, t4)
-    #
-    # return np.rad2deg(roll_x), np.rad2deg(pitch_y), np.rad2deg(yaw_z)
 
-    roll = np.arctan2(2 * y * w - 2 * x * z, 1 - 2 * y * y - 2 * z * z)  # up to down
-    pitch = np.arctan2(2 * x * w - 2 * y * z, 1 - 2 * x * x - 2 * z * z)  # turning
-    yaw = np.arcsin(2 * x * y + 2 * z * w)  # side to side rocking
+    # roll = np.arctan2(j*k + real*i, 1/2 - (i*i+j*j))
+    # pitch = np.arcsin(-2*(i*k - real*j))
+    # heading = np.arctan2(i*j + real*k, 1/2 - (j*j+k*k))
+    #
+    # return np.rad2deg(roll), np.rad2deg(pitch), np.rad2deg(heading)
 
-    return np.rad2deg(yaw), np.rad2deg(roll), np.rad2deg(pitch)
+    return R.from_quat([i, j, k, real]).as_euler('yxz', degrees=True)
 
 
 # reads rotation data from gyroscope

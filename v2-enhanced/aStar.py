@@ -119,10 +119,14 @@ def aStar(shell, unknowns, canWalk, goal, verbose=False, **args):
     # unwalkCoords = np.array(tuple(zip(*np.where(walkMap == 0))))
 
     walkCoords = np.array(tuple(zip(*np.where((walkMap if ignoreDia else walkMapD) > 0))))
-    
-    dists = np.min(cdist(walkCoords, unwalkCoords), axis=1)
-    for ind in range(walkCoords.shape[0]):
-        obsDist[walkCoords[ind][0], walkCoords[ind][1]] = min(dists[ind], voroMax / step)
+
+    if len(unwalkCoords) == 0:
+        for ind in range(walkCoords.shape[0]):
+            obsDist[walkCoords[ind][0], walkCoords[ind][1]] = voroMax / step
+    else:
+        dists = np.min(cdist(walkCoords, unwalkCoords), axis=1)
+        for ind in range(walkCoords.shape[0]):
+            obsDist[walkCoords[ind][0], walkCoords[ind][1]] = min(dists[ind], voroMax / step)
 
     # for row in range(rows):
     #     for col in range(cols):

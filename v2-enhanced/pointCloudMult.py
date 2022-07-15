@@ -211,5 +211,3 @@ if __name__ == "__main__":
     # shell.glyph.scale_mode = 'scale_by_vector'
 
     mayavi.mlab.show()
-
-

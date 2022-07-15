@@ -369,8 +369,8 @@ def takeImageLidar(q, lock, camLock, pipeline, camSleep, **args):
 
                 setAngle(90, p)
 
-                shellFlat, obsFlat, walkFlat, valid = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False,
-                                                                                lidarDists=lidarDists, lidarRots=lidarRots)
+                shellFlat, obsFlat, walkFlat, _ = obstacleDetect.detectMult(vDisps, disps, deps, rots, True, False,
+                                                                            lidarDists=lidarDists, lidarRots=lidarRots)
 
                 startCoords = (int(shellFlat.shape[0] / 2), int(shellFlat.shape[1] / 2))
 
@@ -389,6 +389,8 @@ def takeImageLidar(q, lock, camLock, pipeline, camSleep, **args):
                 #                 ignoreDia=False, diaWeight=100, start=startCoords)
 
                 # aStar.aStar(shellFlat, obsFlat, walkFlat, (0, shellFlat.shape[1] - 1),
+
+                valid = True
 
                 log.log("a* done")
 

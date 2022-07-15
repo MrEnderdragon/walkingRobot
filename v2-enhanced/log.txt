@@ -567,3 +567,1285 @@ masking start
 0.0005960464477539062
 masking end
 2896
+starting detect
+hough1 start
+masking start
+0.0004611015319824219
+masking end
+hough1 start
+masking start
+0.0005352497100830078
+masking end
+hough1 start
+masking start
+0.0005660057067871094
+masking end
+2896
+18.37552785873413
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0007119178771972656
+masking end
+hough1 start
+masking start
+0.0009169578552246094
+masking end
+hough1 start
+masking start
+0.0007190704345703125
+masking end
+starting detect
+hough1 start
+masking start
+0.0005421638488769531
+masking end
+hough1 start
+masking start
+0.0006549358367919922
+masking end
+hough1 start
+masking start
+0.0006310939788818359
+masking end
+2896
+7.542881011962891
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0007059574127197266
+masking end
+hough1 start
+masking start
+0.0007278919219970703
+masking end
+hough1 start
+masking start
+0.0007503032684326172
+masking end
+2896
+6.986356019973755
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0005359649658203125
+masking end
+hough1 start
+masking start
+0.0005640983581542969
+masking end
+hough1 start
+masking start
+0.0006530284881591797
+masking end
+2896
+5.371862888336182
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.00086212158203125
+masking end
+hough1 start
+masking start
+0.0005679130554199219
+masking end
+hough1 start
+masking start
+0.0005600452423095703
+masking end
+2896
+6.773200988769531
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.00067901611328125
+masking end
+hough1 start
+masking start
+0.0005629062652587891
+masking end
+hough1 start
+masking start
+0.0005729198455810547
+masking end
+2896
+6.223114967346191
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.00048613548278808594
+masking end
+hough1 start
+masking start
+0.0005590915679931641
+masking end
+hough1 start
+masking start
+0.0005817413330078125
+masking end
+2896
+5.437538146972656
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0004878044128417969
+masking end
+hough1 start
+masking start
+0.0005657672882080078
+masking end
+hough1 start
+masking start
+0.0006392002105712891
+masking end
+2896
+5.829291820526123
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0007011890411376953
+masking end
+hough1 start
+masking start
+0.0007202625274658203
+masking end
+hough1 start
+masking start
+0.0006277561187744141
+masking end
+2896
+5.777291774749756
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0005121231079101562
+masking end
+hough1 start
+masking start
+0.0006029605865478516
+masking end
+hough1 start
+masking start
+0.0006072521209716797
+masking end
+2896
+5.673821926116943
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0005581378936767578
+masking end
+hough1 start
+masking start
+0.0006690025329589844
+masking end
+hough1 start
+masking start
+0.0006051063537597656
+masking end
+2896
+12.80191683769226
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0009291172027587891
+masking end
+hough1 start
+masking start
+0.0005600452423095703
+masking end
+hough1 start
+masking start
+0.0005791187286376953
+masking end
+2896
+starting detect
+hough1 start
+masking start
+0.0005190372467041016
+masking end
+hough1 start
+masking start
+0.0006132125854492188
+masking end
+hough1 start
+masking start
+0.0005831718444824219
+masking end
+2896
+7.0216827392578125
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0004830360412597656
+masking end
+hough1 start
+masking start
+0.0005712509155273438
+masking end
+hough1 start
+masking start
+0.0005807876586914062
+masking end
+2896
+6.965669870376587
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.000530242919921875
+masking end
+hough1 start
+masking start
+0.0005719661712646484
+masking end
+hough1 start
+masking start
+0.0005781650543212891
+masking end
+2896
+5.677414894104004
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0005459785461425781
+masking end
+hough1 start
+masking start
+0.0005888938903808594
+masking end
+hough1 start
+masking start
+0.0006039142608642578
+masking end
+2896
+5.818371057510376
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0007867813110351562
+masking end
+hough1 start
+masking start
+0.0007390975952148438
+masking end
+hough1 start
+masking start
+0.0007009506225585938
+masking end
+2896
+9.888295888900757
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006849765777587891
+masking end
+hough1 start
+masking start
+0.0006167888641357422
+masking end
+hough1 start
+masking start
+0.0007631778717041016
+masking end
+2.4597790241241455
+done detect
+starting unknowns
+0.36651110649108887
+done unknowns
+starting detect
+hough1 start
+masking start
+0.0007281303405761719
+masking end
+hough1 start
+masking start
+0.0014412403106689453
+masking end
+hough1 start
+masking start
+0.0007939338684082031
+masking end
+2.3652920722961426
+done detect
+starting unknowns
+0.4350447654724121
+done unknowns
+voronoi start
+0.74416184425354
+a* start
+0.4185969829559326
+path start
+(0.0,-0.0),(400.0,-0.0),(750.0,-350.0),(1300.0,-350.0),(1950.0,-1000.0),(2950.0,-1000.0),
+starting detect
+hough1 start
+masking start
+0.0006258487701416016
+masking end
+hough1 start
+masking start
+0.0005731582641601562
+masking end
+hough1 start
+masking start
+0.0006251335144042969
+masking end
+2.146491289138794
+done detect
+starting unknowns
+0.3502790927886963
+done unknowns
+voronoi start
+0.4834170341491699
+a* start
+0.3374459743499756
+path start
+(0.0,-0.0),(400.0,-0.0),(750.0,-350.0),(1300.0,-350.0),(1950.0,-1000.0),(2950.0,-1000.0),
+starting detect
+hough1 start
+masking start
+0.00074005126953125
+masking end
+hough1 start
+masking start
+0.0007779598236083984
+masking end
+hough1 start
+masking start
+0.0006241798400878906
+masking end
+2.1763341426849365
+done detect
+starting unknowns
+0.3480827808380127
+done unknowns
+voronoi start
+0.44861292839050293
+a* start
+0.34966397285461426
+path start
+(0.0,-0.0),(400.0,-0.0),(750.0,-350.0),(1300.0,-350.0),(1950.0,-1000.0),(2950.0,-1000.0),
+starting detect
+hough1 start
+masking start
+0.0005061626434326172
+masking end
+hough1 start
+masking start
+0.0005908012390136719
+masking end
+hough1 start
+masking start
+0.0006978511810302734
+masking end
+2.155752420425415
+done detect
+starting unknowns
+0.3561289310455322
+done unknowns
+voronoi start
+0.42108798027038574
+a* start
+0.355457067489624
+path start
+(0.0,-0.0),(2950.0,-0.0),
+starting detect
+hough1 start
+masking start
+0.0005090236663818359
+masking end
+hough1 start
+masking start
+0.0005729198455810547
+masking end
+hough1 start
+masking start
+0.0007448196411132812
+masking end
+2.108673095703125
+done detect
+starting unknowns
+0.34391212463378906
+done unknowns
+voronoi start
+0.5531227588653564
+a* start
+0.3769550323486328
+path start
+(0.0,-0.0),(350.0,-350.0),(350.0,-700.0),(900.0,-1500.0),(1150.0,-2950.0),
+starting detect
+hough1 start
+masking start
+0.0006358623504638672
+masking end
+hough1 start
+masking start
+0.0008089542388916016
+masking end
+hough1 start
+masking start
+0.0008029937744140625
+masking end
+2.460664987564087
+done detect
+starting unknowns
+0.38326501846313477
+done unknowns
+voronoi start
+0.7299091815948486
+a* start
+0.4026191234588623
+path start
+(0.0,-0.0),(350.0,-350.0),(350.0,-700.0),(900.0,-1500.0),(1150.0,-2950.0),
+starting detect
+hough1 start
+masking start
+0.0004699230194091797
+masking end
+hough1 start
+masking start
+0.0006611347198486328
+masking end
+hough1 start
+masking start
+0.000576019287109375
+masking end
+2896
+51.98109316825867
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0005269050598144531
+masking end
+hough1 start
+masking start
+0.0005707740783691406
+masking end
+hough1 start
+masking start
+0.0007460117340087891
+masking end
+2.2272958755493164
+done detect
+starting unknowns
+0.002307891845703125
+done unknowns
+voronoi start
+0.5951359272003174
+a* start
+starting detect
+hough1 start
+masking start
+0.0005576610565185547
+masking end
+hough1 start
+masking start
+0.0006568431854248047
+masking end
+hough1 start
+masking start
+0.0007288455963134766
+masking end
+1.9006028175354004
+done detect
+starting unknowns
+0.0008947849273681641
+done unknowns
+voronoi start
+0.37824392318725586
+a* start
+0.3625617027282715
+path start
+(0.0,-0.0),(400.0,-0.0),(750.0,-350.0),(1300.0,-350.0),(1950.0,-1000.0),(2950.0,-1000.0),
+starting detect
+hough1 start
+masking start
+0.0020182132720947266
+masking end
+hough1 start
+masking start
+0.0006868839263916016
+masking end
+hough1 start
+masking start
+0.0007011890411376953
+masking end
+2.218358039855957
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0005218982696533203
+masking end
+hough1 start
+masking start
+0.0006759166717529297
+masking end
+hough1 start
+masking start
+0.0006182193756103516
+masking end
+1.8310739994049072
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0005156993865966797
+masking end
+hough1 start
+masking start
+0.0005609989166259766
+masking end
+hough1 start
+masking start
+0.0005681514739990234
+masking end
+1.8152828216552734
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0004968643188476562
+masking end
+hough1 start
+masking start
+0.0006549358367919922
+masking end
+hough1 start
+masking start
+0.0006098747253417969
+masking end
+2.166300058364868
+done detect
+starting unknowns
+0.3069741725921631
+done unknowns
+voronoi start
+0.6068170070648193
+a* start
+0.1959700584411621
+path start
+(0.0,-0.0),(150.0,-150.0),(150.0,-600.0),(900.0,-1500.0),(1150.0,-2950.0),
+starting detect
+hough1 start
+masking start
+0.00047898292541503906
+masking end
+hough1 start
+masking start
+0.0006558895111083984
+masking end
+hough1 start
+masking start
+0.0005960464477539062
+masking end
+starting detect
+hough1 start
+masking start
+0.0005879402160644531
+masking end
+hough1 start
+masking start
+0.0005888938903808594
+masking end
+hough1 start
+masking start
+0.0006010532379150391
+masking end
+1.8058068752288818
+done detect
+starting unknowns
+0.2876088619232178
+done unknowns
+voronoi start
+0.8598630428314209
+a* start
+0.18740296363830566
+path start
+starting detect
+hough1 start
+masking start
+0.0007410049438476562
+masking end
+hough1 start
+masking start
+0.0006420612335205078
+masking end
+hough1 start
+masking start
+0.0006492137908935547
+masking end
+1.9832630157470703
+done detect
+starting unknowns
+0.3034172058105469
+done unknowns
+voronoi start
+0.48331499099731445
+a* start
+0.21579885482788086
+path start
+(0.0,-0.0),(150.0,-150.0),(150.0,-600.0),(900.0,-1500.0),(1150.0,-2950.0),
+starting detect
+hough1 start
+masking start
+0.0005021095275878906
+masking end
+hough1 start
+masking start
+0.0005931854248046875
+masking end
+hough1 start
+masking start
+0.0005908012390136719
+masking end
+1.9469900131225586
+done detect
+starting unknowns
+0.30498385429382324
+done unknowns
+voronoi start
+0.347614049911499
+a* start
+0.18493199348449707
+path start
+(0.0,-0.0),(150.0,-150.0),(150.0,-600.0),(900.0,-1500.0),(1150.0,-2950.0),
+starting detect
+hough1 start
+masking start
+0.0005307197570800781
+masking end
+hough1 start
+masking start
+0.0005660057067871094
+masking end
+hough1 start
+masking start
+0.000576019287109375
+masking end
+2.410761833190918
+done detect
+starting unknowns
+0.35622501373291016
+done unknowns
+voronoi start
+0.7420458793640137
+a* start
+0.553380012512207
+path start
+(0.0,-0.0),(150.0,-150.0),(150.0,-600.0),(900.0,-1500.0),(1150.0,-2950.0),
+starting detect
+hough1 start
+masking start
+0.0004868507385253906
+masking end
+hough1 start
+masking start
+0.0005669593811035156
+masking end
+hough1 start
+masking start
+0.0005779266357421875
+masking end
+1.9310741424560547
+done detect
+starting unknowns
+0.3037986755371094
+done unknowns
+voronoi start
+0.43599390983581543
+a* start
+0.07515501976013184
+path start
+(0.0,-0.0),(500.0,-0.0),(1000.0,300.0),(1800.0,400.0),
+starting detect
+hough1 start
+masking start
+0.0005588531494140625
+masking end
+hough1 start
+masking start
+0.0005719661712646484
+masking end
+hough1 start
+masking start
+0.0006341934204101562
+masking end
+1.8134913444519043
+done detect
+starting unknowns
+0.289154052734375
+done unknowns
+voronoi start
+0.3506629467010498
+a* start
+0.4051358699798584
+path start
+(0.0,-0.0),(350.0,-350.0),(350.0,-700.0),(900.0,-1500.0),(1150.0,-2950.0),
+starting detect
+hough1 start
+masking start
+0.001043081283569336
+masking end
+hough1 start
+masking start
+0.0005688667297363281
+masking end
+hough1 start
+masking start
+0.0005638599395751953
+masking end
+1.8335120677947998
+done detect
+starting unknowns
+0.291917085647583
+done unknowns
+voronoi start
+0.34702205657958984
+a* start
+0.04369211196899414
+path start
+(0.0,-0.0),(400.0,-0.0),(900.0,400.0),(1650.0,500.0),
+starting detect
+hough1 start
+masking start
+0.0006899833679199219
+masking end
+hough1 start
+masking start
+0.0006508827209472656
+masking end
+hough1 start
+masking start
+0.0005629062652587891
+masking end
+1.8940129280090332
+done detect
+starting unknowns
+0.2925071716308594
+done unknowns
+voronoi start
+0.44472289085388184
+a* start
+0.0668489933013916
+path start
+(0.0,-0.0),(1800.0,-150.0),
+starting detect
+hough1 start
+masking start
+0.0004951953887939453
+masking end
+hough1 start
+masking start
+0.0005590915679931641
+masking end
+hough1 start
+masking start
+0.0005741119384765625
+masking end
+2896
+starting detect
+hough1 start
+masking start
+0.0005459785461425781
+masking end
+hough1 start
+masking start
+0.0005781650543212891
+masking end
+hough1 start
+masking start
+0.0005729198455810547
+masking end
+2896
+9.050404071807861
+done detect
+starting unknowns
+15.183326244354248
+done unknowns
+voronoi start
+0.6926488876342773
+a* start
+0.046217918395996094
+path start
+(0.0,-0.0),(400.0,-0.0),(900.0,400.0),(1650.0,500.0),
+starting detect
+hough1 start
+masking start
+0.0006120204925537109
+masking end
+hough1 start
+masking start
+0.0007259845733642578
+masking end
+hough1 start
+masking start
+0.0005998611450195312
+masking end
+starting detect
+hough1 start
+masking start
+0.0005259513854980469
+masking end
+hough1 start
+masking start
+0.0007238388061523438
+masking end
+hough1 start
+masking start
+0.000759124755859375
+masking end
+1.9976661205291748
+done detect
+starting unknowns
+0.2889411449432373
+done unknowns
+voronoi start
+0.6711058616638184
+a* start
+0.0017409324645996094
+path start
+(0.0,-0.0),
+starting detect
+hough1 start
+masking start
+0.00048279762268066406
+masking end
+hough1 start
+masking start
+0.0005681514739990234
+masking end
+hough1 start
+masking start
+0.0005800724029541016
+masking end
+1.999737024307251
+done detect
+starting unknowns
+0.3071279525756836
+done unknowns
+voronoi start
+0.38961195945739746
+a* start
+0.045536041259765625
+path start
+(0.0,-0.0),(400.0,-0.0),(900.0,400.0),(1650.0,500.0),
+starting detect
+hough1 start
+masking start
+0.0005369186401367188
+masking end
+hough1 start
+masking start
+0.0005598068237304688
+masking end
+hough1 start
+masking start
+0.0005738735198974609
+masking end
+1.8329322338104248
+done detect
+starting unknowns
+0.2969930171966553
+done unknowns
+voronoi start
+1.056394100189209
+a* start
+0.04457688331604004
+path start
+(0.0,-0.0),(600.0,350.0),(1650.0,500.0),
+starting detect
+hough1 start
+masking start
+0.0006299018859863281
+masking end
+hough1 start
+masking start
+0.0005660057067871094
+masking end
+hough1 start
+masking start
+0.0005800724029541016
+masking end
+1.8283741474151611
+done detect
+starting unknowns
+0.2944619655609131
+done unknowns
+starting detect
+hough1 start
+masking start
+0.0006539821624755859
+masking end
+hough1 start
+masking start
+0.0006101131439208984
+masking end
+hough1 start
+masking start
+0.0005698204040527344
+masking end
+1.8464698791503906
+done detect
+starting unknowns
+0.2945060729980469
+done unknowns
+voronoi start
+0.5476431846618652
+a* start
+0.04591727256774902
+path start
+(0.0,-0.0),(900.0,800.0),(1300.0,800.0),(1650.0,600.0),
+starting detect
+hough1 start
+masking start
+0.000514984130859375
+masking end
+hough1 start
+masking start
+0.0006098747253417969
+masking end
+hough1 start
+masking start
+0.0006570816040039062
+masking end
+1.9247610569000244
+done detect
+starting unknowns
+0.29967617988586426
+done unknowns
+voronoi start
+0.42597389221191406
+a* start
+0.04564666748046875
+path start
+(0.0,-0.0),(900.0,800.0),(1300.0,800.0),(1650.0,600.0),
+starting detect
+hough1 start
+masking start
+0.0004999637603759766
+masking end
+hough1 start
+masking start
+0.0007901191711425781
+masking end
+hough1 start
+masking start
+0.0005738735198974609
+masking end
+1.9910640716552734
+done detect
+starting unknowns
+0.2868521213531494
+done unknowns
+voronoi start
+0.5969829559326172
+a* start
+0.04464530944824219
+path start
+(0.0,-0.0),(900.0,800.0),(1300.0,800.0),(1650.0,600.0),
+starting detect
+hough1 start
+masking start
+0.0010619163513183594
+masking end
+hough1 start
+masking start
+0.0005481243133544922
+masking end
+hough1 start
+masking start
+0.0005588531494140625
+masking end
+1.7801909446716309
+done detect
+starting unknowns
+0.2896139621734619
+done unknowns
+voronoi start
+0.6688170433044434
+a* start
+0.04394698143005371
+path start
+(0.0,-0.0),(900.0,800.0),(1300.0,800.0),(1650.0,600.0),
+starting detect
+hough1 start
+masking start
+0.0006289482116699219
+masking end
+hough1 start
+masking start
+0.001116037368774414
+masking end
+hough1 start
+masking start
+0.0008227825164794922
+masking end
+3.401704788208008
+done detect
+starting unknowns
+0.4799351692199707
+done unknowns
+voronoi start
+0.6980571746826172
+a* start
+0.05876612663269043
+path start
+(0.0,-0.0),(900.0,800.0),(1300.0,800.0),(1650.0,600.0),
+starting detect
+hough1 start
+masking start
+0.0006961822509765625
+masking end
+hough1 start
+masking start
+0.0008120536804199219
+masking end
+hough1 start
+masking start
+0.0008039474487304688
+masking end
+2896
+12.13417387008667
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006060600280761719
+masking end
+hough1 start
+masking start
+0.0008130073547363281
+masking end
+hough1 start
+masking start
+0.0008809566497802734
+masking end
+2896
+9.467488050460815
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0007381439208984375
+masking end
+hough1 start
+masking start
+0.0007669925689697266
+masking end
+hough1 start
+masking start
+0.0007531642913818359
+masking end
+2896
+2.68742299079895
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006692409515380859
+masking end
+hough1 start
+masking start
+0.0007560253143310547
+masking end
+hough1 start
+masking start
+0.0007562637329101562
+masking end
+2896
+2.535982847213745
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006492137908935547
+masking end
+hough1 start
+masking start
+0.0009930133819580078
+masking end
+hough1 start
+masking start
+0.0007882118225097656
+masking end
+2896
+2.779290199279785
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.00063323974609375
+masking end
+hough1 start
+masking start
+0.0007390975952148438
+masking end
+hough1 start
+masking start
+0.0008199214935302734
+masking end
+2896
+2.5492310523986816
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006358623504638672
+masking end
+hough1 start
+masking start
+0.0007810592651367188
+masking end
+hough1 start
+masking start
+0.0007951259613037109
+masking end
+2896
+2.7628653049468994
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006270408630371094
+masking end
+hough1 start
+masking start
+0.0007889270782470703
+masking end
+hough1 start
+masking start
+0.0007739067077636719
+masking end
+2896
+2.7440149784088135
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006442070007324219
+masking end
+hough1 start
+masking start
+0.0007638931274414062
+masking end
+hough1 start
+masking start
+0.0007579326629638672
+masking end
+2896
+2.7007949352264404
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006420612335205078
+masking end
+hough1 start
+masking start
+0.0007860660552978516
+masking end
+hough1 start
+masking start
+0.0007863044738769531
+masking end
+2896
+2.6762423515319824
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006129741668701172
+masking end
+hough1 start
+masking start
+0.001055002212524414
+masking end
+hough1 start
+masking start
+0.0008301734924316406
+masking end
+2896
+4.078360080718994
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.0006361007690429688
+masking end
+hough1 start
+masking start
+0.0008060932159423828
+masking end
+hough1 start
+masking start
+0.0010077953338623047
+masking end
+2896
+2.9957072734832764
+done detect
+starting unknowns
+starting detect
+hough1 start
+masking start
+0.000701904296875
+masking end
+hough1 start
+masking start
+0.0007581710815429688
+masking end
+hough1 start
+masking start
+0.0007681846618652344
+masking end
+2896
+2.6568949222564697
+done detect
+starting unknowns

@@ -4,7 +4,6 @@ import time
 import cv2
 import os
 import log
-import matplotlib.pyplot as plt
 
 focalLen = 441.25  # pixels
 baseline = 7.5 * 10  # mm
@@ -18,6 +17,7 @@ objstep = step
 # objstep = 200
 
 mid = [maxSize, maxSize, maxSize]
+midOld = [maxSize, maxSize, maxSize/10]
 
 thresh = 35
 
@@ -221,9 +221,9 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
 
             amInval += 1
         else:
-            mapFloor = np.append(mapFloor, np.floor(scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)
+            mapFloor = np.append(mapFloor, np.floor(scale(rot(mapArr(xsFloor, ysFloor, depToUse).reshape(3, -1).T, rots[i]), midOld)).astype(int), axis=0)
 
-        mapFloorLess = np.append(mapFloorLess, np.floor(scale(rot(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, rots[i]), mid)).astype(int), axis=0)  # X, 3
+        mapFloorLess = np.append(mapFloorLess, np.floor(scale(rot(mapArr(xsFloorLess, ysFloorLess, depToUse).reshape(3, -1).T, rots[i]), midOld)).astype(int), axis=0)  # X, 3
 
         # xzRat = (dep.shape[1] / 2) / focalLen
         if not walkFlatDone:
@@ -255,9 +255,9 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
                                        np.all(mapFloor < maxSize*2 / step, axis=1),
         
-                                       (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
-                                                (mapFloor[:, 1] - mid[1] / step) ** 2 +
-                                                (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
+                                       (np.sqrt((mapFloor[:, 2] - midOld[2] / step) ** 2 +
+                                                (mapFloor[:, 1] - midOld[1] / step) ** 2 +
+                                                (mapFloor[:, 0] - midOld[0] / step) ** 2) > minSee / step),
         
                                        ], axis=0))
         
@@ -267,9 +267,9 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
     floorLessCoords = np.where(np.all([np.all(mapFloorLess > 0, axis=1),
                                        np.all(mapFloorLess < maxSize*2 / step, axis=1),
 
-                                       (np.sqrt((mapFloorLess[:, 2] - mid[2] / step) ** 2 +
-                                                (mapFloorLess[:, 1] - mid[1] / step) ** 2 +
-                                                (mapFloorLess[:, 0] - mid[0] / step) ** 2) > minSee / step),
+                                       (np.sqrt((mapFloorLess[:, 2] - midOld[2] / step) ** 2 +
+                                                (mapFloorLess[:, 1] - midOld[1] / step) ** 2 +
+                                                (mapFloorLess[:, 0] - midOld[0] / step) ** 2) > minSee / step),
 
                                        ((mapFloorLess > floorheight+(maxCanOver/step))[:, 2]),
                                        ((mapFloorLess < floorheight+(minCanUnder/step))[:, 2])
@@ -288,7 +288,7 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         # places[1, ...] = lidarDists * np.sin(lidarRots)
         # places[2, ...] = 0
 
-        uniqueFL = np.append(uniqueFL, np.floor(scale(places, mid)).astype(int), axis=0)  # X, 3
+        uniqueFL = np.append(uniqueFL, np.floor(scale(places, midOld)).astype(int), axis=0)  # X, 3
         countsFL = np.append(countsFL, np.ones(len(lidarRots)) * thresh * 2)  # X, 3
 
     shellVox = uniqueFL[countsFL > thresh].T  # X by 3 into 3 by X
@@ -301,9 +301,9 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),
                                        np.all(mapFloor < maxSize*2 / step, axis=1),
 
-                                       (np.sqrt((mapFloor[:, 2] - mid[2] / step) ** 2 +
-                                                (mapFloor[:, 1] - mid[1] / step) ** 2 +
-                                                (mapFloor[:, 0] - mid[0] / step) ** 2) > minSee / step),
+                                       (np.sqrt((mapFloor[:, 2] - midOld[2] / step) ** 2 +
+                                                (mapFloor[:, 1] - midOld[1] / step) ** 2 +
+                                                (mapFloor[:, 0] - midOld[0] / step) ** 2) > minSee / step),
 
                                        ], axis=0))
         uniqueF, countsF = np.unique(mapFloor[floorCoords], return_counts=True, axis=0)  # X, 3
@@ -318,8 +318,8 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         mayavi.mlab.points3d(floorx, floory, floorz, mode="cube",  scale_factor=0.8, color=(0, 1, 0))
         mayavi.mlab.show()
 
-    shellUnsc = unscale(shellVox.T, mid)  # X by 3
-    # shellUnsc = unscale(shellVox.T, mid).T  # 3 by X  
+    shellUnsc = unscale(shellVox.T, midOld)  # X by 3
+    # shellUnsc = unscale(shellVox.T, midOld).T  # 3 by X
 
     obsFlat = np.zeros((int(maxSize*2/step), int(maxSize*2/step)), dtype=np.uint8)
     
@@ -348,12 +348,12 @@ def detectMult(vDisps, disps, deps, rots, verbose=False, display=False, **args):
         angleRight = np.min(xyAngs)
         angleLeft = np.max(xyAngs)
         
-        pCoords = scaleOld([pos[0], pos[1], 0], mid)
+        pCoords = scaleOld([pos[0], pos[1], 0], midOld)
         # if obsFlat[int(coords1[1]/step), int(coords1[0]/step)] == 100:
         #    continue
         tSize = int(maxSize*1.5)
-        rightCoords = scaleOld([tSize * np.cos(angleRight), tSize * np.sin(angleRight), 0], mid)
-        leftCoords = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], mid)
+        rightCoords = scaleOld([tSize * np.cos(angleRight), tSize * np.sin(angleRight), 0], midOld)
+        leftCoords = scaleOld([tSize * np.cos(angleLeft), tSize * np.sin(angleLeft), 0], midOld)
         # contours = np.array([[int(coords1[1]/step), int(coords1[0]/step)],
         #                      [int(coords2[1]/step), int(coords2[0]/step)],
         #                      [int(coords3[1]/step), int(coords3[0]/step)]],np.int32)
@@ -526,6 +526,7 @@ def detectMultHeights(vDisps, disps, deps, rots, verbose=False, display=False, *
     print(floorheight)
 
     if display:
+        import matplotlib.pyplot as plt
         shellx, shelly, shellz = allVox
         log.log(len(shellx))
         floorCoords = np.where(np.all([np.all(mapFloor > 0, axis=1),

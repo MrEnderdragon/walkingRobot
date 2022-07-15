@@ -13,7 +13,8 @@ subpixel = True
 # Better handling for occlusions:
 lr_check = True
 
-imgid = 'ROT-' + ('SP' if subpixel else '') + ('LR' if lr_check else '')
+# imgid = 'ROT-' + ('SP' if subpixel else '') + ('LR' if lr_check else '')
+imgid = '-'
 
 focalLen = 441.25*31.35
 baseline = 7.5*10
@@ -131,13 +132,13 @@ if __name__ == "__main__":
             cv2.imshow("v", vDisp*10)
 
             if cv2.waitKey() == ord('s'):
-                cv2.imwrite('./dispImages/disp' + imgid + '-' + str(counter) + '.png', frameDispCalc.astype(np.uint16))
-                cv2.imwrite('./depImages/depth' + imgid + '-' + str(counter) + '.png', frame.astype(np.uint16))
-                cv2.imwrite('./colImages/col' + imgid + '-' + str(counter) + '.png', frameCol)
-                cv2.imwrite('./LImages/L' + imgid + '-' + str(counter) + '.png', frameL)
-                cv2.imwrite('./RImages/R' + imgid + '-' + str(counter) + '.png', frameR)
-                cv2.imwrite('./vDisp/vDisp' + imgid + '-' + str(counter) + '.png', vDisp)
-                cv2.imwrite('./uDisp/uDisp' + imgid + '-' + str(counter) + '.png', uDisp)
+                cv2.imwrite('./neup/dispImages/disp' + imgid + '-' + str(counter) + '.png', frameDispCalc.astype(np.uint16))
+                cv2.imwrite('./neup/depImages/depth' + imgid + '-' + str(counter) + '.png', frame.astype(np.uint16))
+                cv2.imwrite('./neup/colImages/col' + imgid + '-' + str(counter) + '.png', frameCol)
+                cv2.imwrite('./neup/LImages/L' + imgid + '-' + str(counter) + '.png', frameL)
+                cv2.imwrite('./neup/RImages/R' + imgid + '-' + str(counter) + '.png', frameR)
+                cv2.imwrite('./neup/vDisp/vDisp' + imgid + '-' + str(counter) + '.png', vDisp)
+                cv2.imwrite('./neup/uDisp/uDisp' + imgid + '-' + str(counter) + '.png', uDisp)
 
                 counter += 1
 
